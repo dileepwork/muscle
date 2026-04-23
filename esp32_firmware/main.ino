@@ -13,8 +13,7 @@ const char* BACKEND_URL = "https://muscle-gilt.vercel.app/api/sensor-data/stream
 const char* DEVICE_ID = "ESP32_01";
 
 // GPIO34 is ADC input only and has no internal pull-down resistor.
-// If readings appear without a sensor connected, add a 100k resistor from GPIO34 to GND,
-// or move the sensor signal to GPIO32/33 and enable INPUT_PULLDOWN below.
+// Use an external 100k resistor from GPIO34 to GND to prevent floating readings.
 const int EMG_PIN = 34;
 
 // =============================
@@ -27,6 +26,9 @@ const int MIN_SAMPLES_PER_PACKET = 40;
 
 const int ADC_MIN_VALID = 30;                    // reject near-ground disconnected/pulled-down input
 const int ADC_MAX_VALID = 4065;                  // reject saturated input
+const int ADC_LOW_RAIL = 5;
+const int ADC_HIGH_RAIL = 4090;
+const int MAX_RAIL_HITS_PER_PACKET = 0;
 const int MIN_PEAK_TO_PEAK = 8;                  // reject flat/no-signal intervals
 const int MAX_PEAK_TO_PEAK = 3600;               // reject likely floating/noisy open pin intervals
 
@@ -45,6 +47,7 @@ int sampleCount = 0;
 int latestRaw = 0;
 int minRaw = 4095;
 int maxRaw = 0;
+int railHitCount = 0;
 float smoothedRms = 0;
 
 void connectWiFi() {
@@ -67,6 +70,7 @@ void resetPacketStats() {
   latestRaw = 0;
   minRaw = 4095;
   maxRaw = 0;
+  railHitCount = 0;
 }
 
 void sampleEmg() {
@@ -74,6 +78,9 @@ void sampleEmg() {
   latestRaw = raw;
   minRaw = min(minRaw, raw);
   maxRaw = max(maxRaw, raw);
+  if (raw <= ADC_LOW_RAIL || raw >= ADC_HIGH_RAIL) {
+    railHitCount++;
+  }
   sumRaw += raw;
   sumSquares += (double)raw * raw;
   sampleCount++;
@@ -81,6 +88,7 @@ void sampleEmg() {
 
 bool isValidEmgInterval(float meanRaw, int peakToPeak) {
   if (sampleCount < MIN_SAMPLES_PER_PACKET) return false;
+  if (railHitCount > MAX_RAIL_HITS_PER_PACKET) return false;
   if (meanRaw < ADC_MIN_VALID || meanRaw > ADC_MAX_VALID) return false;
   if (peakToPeak < MIN_PEAK_TO_PEAK) return false;
   if (peakToPeak > MAX_PEAK_TO_PEAK) return false;
@@ -152,11 +160,7 @@ void setup() {
 
   analogReadResolution(12);
   analogSetPinAttenuation(EMG_PIN, ADC_11db);
-  if (EMG_PIN == 32 || EMG_PIN == 33) {
-    pinMode(EMG_PIN, INPUT_PULLDOWN);
-  } else {
-    pinMode(EMG_PIN, INPUT);
-  }
+  pinMode(EMG_PIN, INPUT);
 
   secureClient.setInsecure();
   WiFi.mode(WIFI_STA);
@@ -176,9 +180,8 @@ void loop() {
   }
 
   if (now - lastSendTime < SEND_INTERVAL_MS) return;
+  if (sampleCount < MIN_SAMPLES_PER_PACKET) return;
   lastSendTime = now;
-
-  if (sampleCount == 0) return;
 
   const float meanRaw = sumRaw / sampleCount;
   const double varianceValue = (sumSquares / sampleCount) - ((double)meanRaw * meanRaw);
@@ -195,6 +198,9 @@ void loop() {
       minRaw,
       maxRaw
     );
+    if (railHitCount > 0) {
+      Serial.printf("Rail hits detected: %d. Check EMG wiring/power/reference ground.\n", railHitCount);
+    }
     resetPacketStats();
     return;
   }

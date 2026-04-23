@@ -107,13 +107,15 @@ export default function Dashboard() {
       }
 
       setAlerts(
-        alertRows.slice(0, 10).map((alert) => ({
-          id: alert.id,
-          time: formatDateTime(alert.created_at),
-          type: alert.type,
-          desc: alert.message,
-          level: alert.severity,
-        }))
+        samples.length
+          ? alertRows.slice(0, 10).map((alert) => ({
+              id: alert.id,
+              time: formatDateTime(alert.created_at),
+              type: alert.type,
+              desc: alert.message,
+              level: alert.severity,
+            }))
+          : []
       );
     } catch (error) {
       setLoadError(error.message);
@@ -155,6 +157,7 @@ export default function Dashboard() {
       setStreamStatus('waiting');
       setCurrentAnalysis(initialAnalysis);
       setData(createEmptyChartData());
+      setAlerts([]);
     }, 1000);
 
     return () => {

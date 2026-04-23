@@ -41,6 +41,11 @@ const streamLimiter = rateLimit({
     message: { error: 'Too many requests, please slow down.' }
 });
 
+const ADC_LOW_RAIL = 5;
+const ADC_HIGH_RAIL = 4090;
+
+const isRailReading = (value) => value <= ADC_LOW_RAIL || value >= ADC_HIGH_RAIL;
+
 const processAndStoreData = async (req, res) => {
     try {
         const { device_id, timestamp, emg, imu } = req.body;
@@ -56,6 +61,13 @@ const processAndStoreData = async (req, res) => {
         if (rawReading.error || rmsReading.error || peakReading.error) {
             return res.status(400).json({
                 error: rawReading.error || rmsReading.error || peakReading.error
+            });
+        }
+
+        if (isRailReading(rawReading.value) || isRailReading(peakReading.value)) {
+            return res.status(422).json({
+                error: 'Invalid EMG packet',
+                details: 'ADC reading is saturated or floating. Check EMG sensor wiring, shared ground, and avoid GPIO34 floating input.'
             });
         }
 
