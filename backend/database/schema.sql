@@ -50,6 +50,6 @@ CREATE INDEX idx_alerts_device_resolved ON alerts(device_id, resolved, created_a
 CREATE TABLE device_calibrations (
   device_id TEXT PRIMARY KEY,
   baseline_rms NUMERIC NOT NULL DEFAULT 0,
-  max_rms NUMERIC NOT NULL DEFAULT 100,
+  max_rms NUMERIC NOT NULL DEFAULT 500,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

@@ -5,16 +5,17 @@ const supabase = require('../config/supabase');
 // POST /api/alerts
 router.post('/', async (req, res) => {
     try {
-        const { deviceId, type, severity, message } = req.body;
+        const { deviceId, device_id, type, severity, message } = req.body;
+        const normalizedDeviceId = deviceId || device_id;
 
-        if (!deviceId || !type || !severity || !message) {
+        if (!normalizedDeviceId || !type || !severity || !message) {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
         const { data: savedAlert, error } = await supabase
             .from('alerts')
             .insert([{
-                device_id: deviceId,
+                device_id: normalizedDeviceId,
                 type,
                 severity,
                 message,

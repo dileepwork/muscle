@@ -1,4 +1,3 @@
-import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -15,29 +14,21 @@ export default function StatusCard({ title, value, status, icon: Icon, descripti
     neutral: 'bg-blue-50 text-blue-600 border-blue-100'
   };
 
-  const statusTextColors = {
-    normal: 'text-emerald-500',
-    warning: 'text-amber-500',
-    risk: 'text-red-500',
-    neutral: 'text-blue-500'
-  };
-
   const activeColor = statusColors[status?.toLowerCase()] || statusColors.neutral;
-  const activeTextColor = statusTextColors[status?.toLowerCase()] || statusTextColors.neutral;
 
   return (
-    <div className="card hover:shadow-md transition-shadow">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-slate-500">{title}</h3>
-          <div className={cn("p-2 rounded-lg border", activeColor)}>
+    <div className="card transition-shadow hover:shadow-md">
+      <div className="p-4 sm:p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-500">{title}</h3>
+          <div className={cn("rounded-lg border p-2", activeColor)}>
             <Icon className="h-5 w-5" />
           </div>
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold text-slate-800">{value}</span>
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="break-words text-2xl font-bold leading-tight text-slate-900 sm:text-3xl">{value}</span>
           {status && (
-            <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", activeColor)}>
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", activeColor)}>
               {status}
             </span>
           )}

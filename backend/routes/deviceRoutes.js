@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
+const { DEFAULT_MAX_RMS, setCachedMaxRms } = require('../services/calibrationCache');
 
 // GET /api/device/status
 router.get('/status', (req, res) => {
@@ -18,22 +19,29 @@ router.get('/status', (req, res) => {
 router.post('/calibrate', async (req, res) => {
     try {
         const { device_id, baseline_rms, max_rms } = req.body;
+        const baselineValue = Number(baseline_rms);
+        const maxValue = Number(max_rms);
 
         if (!device_id || baseline_rms === undefined || max_rms === undefined) {
             return res.status(400).json({ error: 'device_id, baseline_rms, and max_rms are required' });
+        }
+
+        if (!Number.isFinite(baselineValue) || baselineValue < 0 || !Number.isFinite(maxValue) || maxValue <= 0) {
+            return res.status(400).json({ error: 'baseline_rms must be 0 or higher and max_rms must be greater than 0' });
         }
 
         const { data, error } = await supabase
             .from('device_calibrations')
             .upsert([{ 
                 device_id, 
-                baseline_rms, 
-                max_rms,
+                baseline_rms: baselineValue,
+                max_rms: maxValue,
                 updated_at: new Date().toISOString()
             }], { onConflict: 'device_id' })
             .select();
 
         if (error) throw error;
+        setCachedMaxRms(device_id, maxValue);
 
         res.status(200).json({
             message: 'Calibration saved successfully',
@@ -62,7 +70,7 @@ router.get('/calibration/:device_id', async (req, res) => {
             return res.status(200).json({
                 device_id,
                 baseline_rms: 0,
-                max_rms: 500 // fallback safe max
+                max_rms: DEFAULT_MAX_RMS
             });
         }
         

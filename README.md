@@ -36,7 +36,7 @@ The backend serves as the bridge between the hardware devices and the frontend d
    ```
 4. Start the server:
    ```bash
-   node server.js
+   npm start
    ```
    *(Server should run at `http://localhost:5000`)*
 
@@ -59,7 +59,11 @@ The frontend provides a modern, responsive dashboard to monitor the sensor data.
    ```bash
    npm install
    ```
-3. Run the development server:
+3. Optional: create `frontend/.env` if the backend is not on `http://localhost:5000`:
+   ```env
+   VITE_API_URL=http://localhost:5000
+   ```
+4. Run the development server:
    ```bash
    npm run dev
    ```

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -15,24 +15,21 @@ function App() {
 
   return (
     <Router>
-      <div className="flex h-screen bg-slate-50 overflow-hidden">
-        {/* Mobile sidebar overlay */}
+      <div className="flex min-h-dvh bg-slate-50">
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+            className="fixed inset-0 z-20 bg-slate-950/40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           ></div>
         )}
 
-        {/* Sidebar */}
         <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
 
-        {/* Main Content */}
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col">
           <Header onMenuClick={() => setSidebarOpen(true)} />
           
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-slate-50">
-            <div className="max-w-7xl mx-auto">
+          <main className="flex-1 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-7xl">
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />

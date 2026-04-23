@@ -10,21 +10,37 @@ const deviceRoutes = require('./routes/deviceRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const allowedOrigins = FRONTEND_URL.split(',').map((origin) => origin.trim()).filter(Boolean);
+const localDevOriginPattern = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
+const allowLocalDevOrigins = process.env.ALLOW_LOCAL_DEV_ORIGINS !== 'false';
+
+const corsOptions = {
+    origin(origin, callback) {
+        if (
+            !origin ||
+            allowedOrigins.includes('*') ||
+            allowedOrigins.includes(origin) ||
+            (allowLocalDevOrigins && localDevOriginPattern.test(origin))
+        ) {
+            callback(null, true);
+            return;
+        }
+
+        callback(new Error(`CORS origin not allowed: ${origin}`));
+    },
+    methods: ['GET', 'POST', 'PUT', 'OPTIONS']
+};
 
 // Create HTTP Server and attach Socket.io
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: {
-        origin: '*', // Allow frontend to connect
-        methods: ['GET', 'POST', 'PUT']
-    }
+    cors: corsOptions
 });
 
 // Middleware
-app.use(cors({
-    origin: '*', // Allow hardware devices and frontend to connect
-}));
-app.use(express.json());
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '1mb' }));
 
 // Initialize Supabase Client
 const supabase = require('./config/supabase');
