@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, CheckCircle2, Database, RefreshCw, Search, ShieldAlert } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import StatePanel from '../components/StatePanel';
@@ -21,12 +21,13 @@ export default function History() {
 
   const summary = useMemo(() => summarizeSensorRows(rows), [rows]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async (nextDeviceId = '') => {
     setIsLoading(true);
     setError('');
 
     try {
-      const query = deviceId.trim() ? `?device_id=${encodeURIComponent(deviceId.trim())}` : '';
+      const normalizedDeviceId = nextDeviceId.trim();
+      const query = normalizedDeviceId ? `?device_id=${encodeURIComponent(normalizedDeviceId)}` : '';
       const data = await requestJson(`/api/sensor-data/history${query}`);
       setRows(data.map(normalizeSensorRow));
     } catch (loadError) {
@@ -34,11 +35,15 @@ export default function History() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadHistory();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      void loadHistory();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadHistory]);
 
   return (
     <div className="space-y-6">
@@ -56,7 +61,7 @@ export default function History() {
               placeholder="Device ID"
             />
           </div>
-          <button type="button" onClick={loadHistory} disabled={isLoading} className="btn-outline">
+          <button type="button" onClick={() => loadHistory(deviceId)} disabled={isLoading} className="btn-outline">
             <RefreshCw className={isLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
             Search
           </button>

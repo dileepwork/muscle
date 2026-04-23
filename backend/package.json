@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node --check server.js && node --check routes/sensorRoutes.js && node --check routes/alertRoutes.js && node --check routes/deviceRoutes.js && node --check config/supabase.js && node --check services/calibrationCache.js"
+    "check": "node --check server.js && node --check routes/sensorRoutes.js && node --check routes/alertRoutes.js && node --check routes/deviceRoutes.js && node --check config/supabase.js && node --check services/calibrationCache.js && node --check services/localStore.js"
   },
   "keywords": [],
   "author": "",

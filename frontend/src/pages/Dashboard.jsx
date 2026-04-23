@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ActivitySquare, BrainCircuit, Clock, HeartPulse, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Line, LineChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -31,6 +31,8 @@ const initialAnalysis = {
   created_at: null,
 };
 
+const LIVE_SAMPLE_MAX_AGE_MS = 15000;
+
 const statusFromFatigue = (fatigue) => {
   if (fatigue === 'high') return 'Risk';
   if (fatigue === 'moderate') return 'Warning';
@@ -56,23 +58,30 @@ const toChartPoint = (sample) => ({
   emg_rms: sample.emg_rms,
 });
 
+const isLiveSample = (sample) => {
+  const createdAt = new Date(sample.created_at || 0).getTime();
+  return Number.isFinite(createdAt) && Date.now() - createdAt <= LIVE_SAMPLE_MAX_AGE_MS;
+};
+
 export default function Dashboard() {
   const [data, setData] = useState(createEmptyChartData);
   const [alerts, setAlerts] = useState([]);
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [streamStatus, setStreamStatus] = useState('waiting');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [currentAnalysis, setCurrentAnalysis] = useState(initialAnalysis);
 
-  const lastUpdateRef = useRef(0);
   const socketRef = useRef(null);
+  const lastSampleAtRef = useRef(0);
 
-  const pushSample = (sample) => {
+  const pushSample = useCallback((sample) => {
+    lastSampleAtRef.current = Date.now();
+    setStreamStatus('live');
     setData((previous) => [...previous.slice(1), toChartPoint(sample)]);
     setCurrentAnalysis(sample);
-  };
+  }, []);
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     setIsRefreshing(true);
     setLoadError('');
 
@@ -82,12 +91,19 @@ export default function Dashboard() {
         requestJson('/api/alerts?resolved=false'),
       ]);
 
-      const samples = latestRows.map(normalizeSensorRow).reverse();
+      const samples = latestRows.map(normalizeSensorRow).filter(isLiveSample).reverse();
       if (samples.length) {
+        const latestSample = samples[samples.length - 1];
         const padded = [...createEmptyChartData(), ...samples.map(toChartPoint)].slice(-20);
         setData(padded);
-        setCurrentAnalysis(samples[samples.length - 1]);
-        lastUpdateRef.current = new Date(samples[samples.length - 1].created_at).getTime();
+        setCurrentAnalysis(latestSample);
+        lastSampleAtRef.current = Date.now();
+        setStreamStatus('live');
+      } else {
+        setData(createEmptyChartData());
+        setCurrentAnalysis(initialAnalysis);
+        lastSampleAtRef.current = 0;
+        setStreamStatus('waiting');
       }
 
       setAlerts(
@@ -104,18 +120,16 @@ export default function Dashboard() {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    lastUpdateRef.current = Date.now();
-    loadInitialData();
+    const initialLoadId = setTimeout(() => {
+      void loadInitialData();
+    }, 0);
 
     socketRef.current = io(API_URL, { reconnectionAttempts: 3, timeout: 3000 });
 
     socketRef.current.on('sensor_update', (payload) => {
-      lastUpdateRef.current = Date.now();
-      setIsDemoMode(false);
-
       const sample = normalizeSensorRow(payload);
       pushSample(sample);
 
@@ -134,49 +148,24 @@ export default function Dashboard() {
       }
     });
 
-    let timeOffset = 0;
-    const watchdogInterval = setInterval(() => {
-      if (Date.now() - lastUpdateRef.current <= 3000) return;
+    const staleCheckInterval = setInterval(() => {
+      if (!lastSampleAtRef.current || Date.now() - lastSampleAtRef.current <= LIVE_SAMPLE_MAX_AGE_MS) return;
 
-      setIsDemoMode(true);
-      timeOffset += 0.1;
-
-      const raw = Math.floor(Math.random() * 300) + 150;
-      const rms = raw * 0.707 + Math.random() * 20;
-      const simulatedPitch = Math.sin(timeOffset) * 15;
-      const simulatedRoll = Math.cos(timeOffset) * 10;
-
-      let fatigue = 'low';
-      let posture = 'good';
-      let risk = 'normal';
-
-      if (Math.abs(simulatedPitch) > 10) posture = 'bad';
-      if (Math.random() > 0.95) fatigue = 'moderate';
-      if (posture === 'bad' && fatigue === 'moderate') risk = 'warning';
-
-      pushSample(
-        normalizeSensorRow({
-          device_id: currentAnalysis.device_id || 'ESP32_01',
-          emg_raw: raw,
-          emg_rms: rms,
-          emg_peak: raw,
-          pitch: simulatedPitch,
-          roll: simulatedRoll,
-          fatigue,
-          posture,
-          risk,
-          created_at: new Date().toISOString(),
-        })
-      );
+      lastSampleAtRef.current = 0;
+      setStreamStatus('waiting');
+      setCurrentAnalysis(initialAnalysis);
+      setData(createEmptyChartData());
     }, 1000);
 
     return () => {
-      clearInterval(watchdogInterval);
+      clearTimeout(initialLoadId);
+      clearInterval(staleCheckInterval);
       if (socketRef.current) socketRef.current.disconnect();
     };
-  }, []);
+  }, [loadInitialData, pushSample]);
 
-  const streamLabel = isDemoMode ? 'Demo data' : 'Live stream';
+  const isLive = streamStatus === 'live';
+  const streamLabel = isLive ? 'Live stream' : 'Waiting for ESP32';
   const riskLabel = statusFromRisk(currentAnalysis.risk);
 
   return (
@@ -187,12 +176,10 @@ export default function Dashboard() {
       >
         <div
           className={`badge ${
-            isDemoMode
-              ? 'border-amber-200 bg-amber-50 text-amber-700'
-              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            isLive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
           }`}
         >
-          <span className={`h-2 w-2 rounded-full ${isDemoMode ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+          <span className={`h-2 w-2 rounded-full ${isLive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
           {streamLabel}
         </div>
         <button type="button" onClick={loadInitialData} disabled={isRefreshing} className="btn-outline">
@@ -203,35 +190,35 @@ export default function Dashboard() {
 
       {loadError && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Backend data could not be loaded: {loadError}. The dashboard will continue in demo mode.
+          Backend data could not be loaded: {loadError}.
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatusCard
           title="Overall Risk"
-          value={titleCase(currentAnalysis.risk)}
-          status={riskLabel}
+          value={isLive ? titleCase(currentAnalysis.risk) : '--'}
+          status={isLive ? riskLabel : 'Neutral'}
           icon={ShieldAlert}
-          description={`Device ${currentAnalysis.device_id}`}
+          description={isLive ? `Device ${currentAnalysis.device_id}` : 'No live ESP32 packet'}
         />
         <StatusCard
           title="Muscle Fatigue"
-          value={titleCase(currentAnalysis.fatigue)}
-          status={statusFromFatigue(currentAnalysis.fatigue)}
+          value={isLive ? titleCase(currentAnalysis.fatigue) : '--'}
+          status={isLive ? statusFromFatigue(currentAnalysis.fatigue) : 'Neutral'}
           icon={ActivitySquare}
           description="Based on calibrated RMS ratio"
         />
         <StatusCard
           title="Posture"
-          value={titleCase(currentAnalysis.posture)}
-          status={currentAnalysis.posture === 'good' ? 'Normal' : 'Warning'}
+          value={isLive ? titleCase(currentAnalysis.posture) : '--'}
+          status={isLive ? (currentAnalysis.posture === 'good' ? 'Normal' : 'Warning') : 'Neutral'}
           icon={HeartPulse}
           description="Pitch and roll inclination"
         />
         <StatusCard
           title="Pitch / Roll"
-          value={`${formatNumber(currentAnalysis.pitch)} deg / ${formatNumber(currentAnalysis.roll)} deg`}
+          value={isLive ? `${formatNumber(currentAnalysis.pitch)} deg / ${formatNumber(currentAnalysis.roll)} deg` : '--'}
           status="Neutral"
           icon={BrainCircuit}
           description="Current IMU position"
@@ -301,7 +288,7 @@ export default function Dashboard() {
               <div className="flex h-full min-h-[260px] flex-col items-center justify-center px-6 text-center text-slate-500">
                 <ShieldAlert className="mb-3 h-9 w-9 text-emerald-500" />
                 <p className="text-sm font-semibold text-slate-800">No active alerts</p>
-                <p className="mt-1 text-sm">Current readings are inside the safe range.</p>
+                <p className="mt-1 text-sm">{isLive ? 'Current readings are inside the safe range.' : 'No live hardware readings yet.'}</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">

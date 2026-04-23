@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, BarChart3, CheckCircle2, RefreshCw, ShieldAlert } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import StatePanel from '../components/StatePanel';
@@ -43,7 +43,7 @@ export default function Rehabilitation() {
   const averageRms = rows.length ? rows.reduce((sum, row) => sum + row.emg_rms, 0) / rows.length : 0;
   const riskEvents = rows.filter((row) => riskStatus(row.risk) !== 'normal').length;
 
-  const loadProgress = async () => {
+  const loadProgress = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -55,11 +55,15 @@ export default function Rehabilitation() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadProgress();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      void loadProgress();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadProgress]);
 
   return (
     <div className="space-y-6">

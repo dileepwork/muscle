@@ -1,5 +1,7 @@
 const DEFAULT_MAX_RMS = 500;
 
+const { getCalibration } = require('./localStore');
+
 const calibrationCache = new Map();
 
 const toPositiveNumber = (value, fallback = DEFAULT_MAX_RMS) => {
@@ -15,6 +17,12 @@ const setCachedMaxRms = (deviceId, maxRms) => {
 const getCachedMaxRms = async (supabase, deviceId) => {
   if (calibrationCache.has(deviceId)) {
     return calibrationCache.get(deviceId);
+  }
+
+  if (!supabase) {
+    const maxRms = toPositiveNumber(getCalibration(deviceId).max_rms);
+    setCachedMaxRms(deviceId, maxRms);
+    return maxRms;
   }
 
   const { data, error } = await supabase

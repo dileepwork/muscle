@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
 const rateLimit = require('express-rate-limit');
 const { getCachedMaxRms } = require('../services/calibrationCache');
+const localStore = require('../services/localStore');
 
 const ALERT_COOLDOWN_MS = 30000;
 const alertCooldown = new Map();
@@ -83,7 +84,8 @@ const processAndStoreData = async (req, res) => {
             risk = 'warning';
         }
 
-        const payloadToSave = { 
+        const payloadToSave = {
+            created_at: new Date().toISOString(),
             device_id, 
             emg_raw: rawReading.value,
             emg_rms: current_rms,
@@ -111,24 +113,34 @@ const processAndStoreData = async (req, res) => {
             });
         }
 
-        // Insert into Supabase asynchronously (don't block response)
-        supabase.from('sensor_data').insert([payloadToSave]).then(({ error }) => {
-            if (error) console.error('DB Insert Error:', error);
-        });
+        // Store asynchronously when Supabase is configured, otherwise keep local runs usable in memory.
+        if (supabase) {
+            supabase.from('sensor_data').insert([payloadToSave]).then(({ error }) => {
+                if (error) console.error('DB Insert Error:', error);
+            });
+        } else {
+            localStore.insertSensorData(payloadToSave);
+        }
 
         // Auto-trigger alerts
         if ((risk === 'warning' || risk === 'critical') && shouldSaveAlert(device_id, risk)) {
             const alertType = risk === 'critical' ? 'Critical Risk Detected' : 'Safety Warning';
             const alertMessage = `Risk Level: ${risk}. Fatigue is ${fatigue}, Posture is ${posture}. (RMS: ${current_rms.toFixed(2)}, Pitch: ${pitch.toFixed(1)} deg, Roll: ${roll.toFixed(1)} deg)`;
 
-            supabase.from('alerts').insert([{
+            const alertPayload = {
                 device_id,
                 type: alertType,
                 severity: risk === 'critical' ? 'Critical' : 'Warning',
                 message: alertMessage
-            }]).then(({ error }) => {
-                if (error) console.error('Error saving alert:', error);
-            });
+            };
+
+            if (supabase) {
+                supabase.from('alerts').insert([alertPayload]).then(({ error }) => {
+                    if (error) console.error('Error saving alert:', error);
+                });
+            } else {
+                localStore.insertAlert(alertPayload);
+            }
         }
 
         res.status(200).json({
@@ -149,6 +161,11 @@ router.post('/stream', streamLimiter, processAndStoreData);
 router.get('/latest', async (req, res) => {
     try {
         const { device_id } = req.query;
+
+        if (!supabase) {
+            return res.status(200).json(localStore.listSensorData({ device_id, limit: 20 }));
+        }
+
         let query = supabase.from('sensor_data').select('*').order('created_at', { ascending: false }).limit(20);
         if (device_id) query = query.eq('device_id', device_id);
         const { data, error } = await query;
@@ -162,6 +179,11 @@ router.get('/latest', async (req, res) => {
 router.get('/history', async (req, res) => {
     try {
         const { device_id } = req.query;
+
+        if (!supabase) {
+            return res.status(200).json(localStore.listSensorData({ device_id, limit: 100 }));
+        }
+
         let query = supabase.from('sensor_data').select('*').order('created_at', { ascending: false }).limit(100);
         if (device_id) query = query.eq('device_id', device_id);
         const { data, error } = await query;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Cpu, Database, RefreshCw, Settings as SettingsIcon, ShieldCheck } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import StatePanel from '../components/StatePanel';
@@ -14,15 +14,16 @@ export default function Settings() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async (nextDeviceId = 'ESP32_01') => {
     setIsLoading(true);
     setError('');
 
     try {
+      const normalizedDeviceId = nextDeviceId.trim() || 'ESP32_01';
       const [healthPayload, statusPayload, calibrationPayload] = await Promise.all([
         requestJson('/api/health'),
-        requestJson(`/api/device/status?deviceId=${encodeURIComponent(deviceId.trim() || 'ESP32_01')}`),
-        requestJson(`/api/device/calibration/${encodeURIComponent(deviceId.trim() || 'ESP32_01')}`),
+        requestJson(`/api/device/status?deviceId=${encodeURIComponent(normalizedDeviceId)}`),
+        requestJson(`/api/device/calibration/${encodeURIComponent(normalizedDeviceId)}`),
       ]);
 
       setHealth(healthPayload);
@@ -33,11 +34,15 @@ export default function Settings() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      void loadSettings();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadSettings]);
 
   return (
     <div className="space-y-6">
@@ -52,7 +57,7 @@ export default function Settings() {
             className="input w-full sm:w-52"
             placeholder="Device ID"
           />
-          <button type="button" onClick={loadSettings} disabled={isLoading} className="btn-outline">
+          <button type="button" onClick={() => loadSettings(deviceId)} disabled={isLoading} className="btn-outline">
             <RefreshCw className={isLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
             Refresh
           </button>

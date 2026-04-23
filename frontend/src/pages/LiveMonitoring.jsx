@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Activity, Cpu, Radio, RefreshCw, ShieldAlert } from 'lucide-react';
 import { io } from 'socket.io-client';
 import PageHeader from '../components/PageHeader';
@@ -14,6 +14,13 @@ const statusFromRisk = (risk) => {
   return 'Normal';
 };
 
+const LIVE_SAMPLE_MAX_AGE_MS = 15000;
+
+const isLiveSample = (sample) => {
+  const createdAt = new Date(sample.created_at || 0).getTime();
+  return Number.isFinite(createdAt) && Date.now() - createdAt <= LIVE_SAMPLE_MAX_AGE_MS;
+};
+
 export default function LiveMonitoring() {
   const [samples, setSamples] = useState([]);
   const [connection, setConnection] = useState('connecting');
@@ -22,26 +29,28 @@ export default function LiveMonitoring() {
 
   const latest = samples[0] || null;
 
-  const loadLatest = async () => {
+  const loadLatest = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
     try {
       const rows = await requestJson('/api/sensor-data/latest');
-      setSamples(rows.map(normalizeSensorRow));
+      setSamples(rows.map(normalizeSensorRow).filter(isLiveSample));
     } catch (loadError) {
       setError(loadError.message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadLatest();
+    const timeoutId = setTimeout(() => {
+      void loadLatest();
+    }, 0);
 
     const socket = io(API_URL, { reconnectionAttempts: 3, timeout: 3000 });
 
-    socket.on('connect', () => setConnection('connected'));
+    socket.on('connect', () => setConnection('waiting'));
     socket.on('disconnect', () => setConnection('disconnected'));
     socket.on('connect_error', () => setConnection('disconnected'));
     socket.on('sensor_update', (payload) => {
@@ -49,8 +58,22 @@ export default function LiveMonitoring() {
       setSamples((previous) => [normalizeSensorRow(payload), ...previous].slice(0, 20));
     });
 
-    return () => socket.disconnect();
-  }, []);
+    const staleCheckInterval = setInterval(() => {
+      setSamples((previous) => {
+        const liveSamples = previous.filter(isLiveSample);
+        if (liveSamples.length === 0) {
+          setConnection((current) => (current === 'disconnected' ? current : 'waiting'));
+        }
+        return liveSamples;
+      });
+    }, 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(staleCheckInterval);
+      socket.disconnect();
+    };
+  }, [loadLatest]);
 
   return (
     <div className="space-y-6">

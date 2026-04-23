@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, RefreshCw, Search, ShieldAlert } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import StatePanel from '../components/StatePanel';
@@ -31,14 +31,15 @@ export default function Alerts() {
     [alerts]
   );
 
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async (nextDeviceId = '', nextShowResolved = false) => {
     setIsLoading(true);
     setError('');
 
     try {
       const params = new URLSearchParams();
-      if (deviceId.trim()) params.set('deviceId', deviceId.trim());
-      if (!showResolved) params.set('resolved', 'false');
+      const normalizedDeviceId = nextDeviceId.trim();
+      if (normalizedDeviceId) params.set('deviceId', normalizedDeviceId);
+      if (!nextShowResolved) params.set('resolved', 'false');
 
       const query = params.toString() ? `?${params.toString()}` : '';
       const data = await requestJson(`/api/alerts${query}`);
@@ -48,7 +49,7 @@ export default function Alerts() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const resolveAlert = async (id) => {
     setResolvingId(id);
@@ -69,8 +70,12 @@ export default function Alerts() {
   };
 
   useEffect(() => {
-    loadAlerts();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      void loadAlerts();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+  }, [loadAlerts]);
 
   return (
     <div className="space-y-6">
@@ -97,7 +102,7 @@ export default function Alerts() {
             />
             Include resolved
           </label>
-          <button type="button" onClick={loadAlerts} disabled={isLoading} className="btn-outline">
+          <button type="button" onClick={() => loadAlerts(deviceId, showResolved)} disabled={isLoading} className="btn-outline">
             <RefreshCw className={isLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
             Refresh
           </button>

@@ -43,9 +43,9 @@ const io = new Server(server, {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 
-// Initialize Supabase Client
-const supabase = require('./config/supabase');
-console.log('Supabase client initialized');
+// Initialize storage
+const { isSupabaseConfigured } = require('./config/supabase');
+console.log(isSupabaseConfigured ? 'Supabase client initialized' : 'Using in-memory local storage');
 
 // Make io accessible to routers
 app.set('io', io);

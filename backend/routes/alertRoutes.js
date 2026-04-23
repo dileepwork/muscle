@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../config/supabase');
+const { supabase } = require('../config/supabase');
+const localStore = require('../services/localStore');
 
 // POST /api/alerts
 router.post('/', async (req, res) => {
@@ -10,6 +11,18 @@ router.post('/', async (req, res) => {
 
         if (!normalizedDeviceId || !type || !severity || !message) {
             return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        if (!supabase) {
+            const savedAlert = localStore.insertAlert({
+                device_id: normalizedDeviceId,
+                type,
+                severity,
+                message,
+                resolved: false
+            });
+
+            return res.status(201).json(savedAlert);
         }
 
         const { data: savedAlert, error } = await supabase
@@ -35,6 +48,12 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
     try {
         const { deviceId, resolved } = req.query;
+
+        if (!supabase) {
+            const resolvedFilter = resolved === undefined ? undefined : resolved === 'true';
+            return res.status(200).json(localStore.listAlerts({ deviceId, resolved: resolvedFilter, limit: 50 }));
+        }
+
         let query = supabase.from('alerts').select('*').order('created_at', { ascending: false }).limit(50);
         
         if (deviceId) {
@@ -58,6 +77,15 @@ router.get('/', async (req, res) => {
 router.put('/:id/resolve', async (req, res) => {
     try {
         const { id } = req.params;
+
+        if (!supabase) {
+            const alert = localStore.resolveAlert(id);
+            if (!alert) {
+                return res.status(404).json({ error: 'Alert not found' });
+            }
+
+            return res.status(200).json(alert);
+        }
         
         const { data: alert, error } = await supabase
             .from('alerts')

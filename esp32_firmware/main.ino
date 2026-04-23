@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
 // ==========================================
@@ -14,6 +15,9 @@ const char* BACKEND_URL   = "https://muscle-gilt.vercel.app/api/sensor-data/stre
 
 const String DEVICE_ID    = "ESP32_01";
 const int EMG_PIN         = 34; // Analog pin for EMG sensor
+
+WiFiClient plainClient;
+WiFiClientSecure secureClient;
 
 // ==========================================
 // TIMING & SIGNAL PROCESSING VARIABLES
@@ -35,6 +39,7 @@ const float alpha = 0.3; // Smoothing factor (0.0 to 1.0)
 void setup() {
   Serial.begin(115200);
   analogReadResolution(12); // ESP32 has 12-bit ADC (0 - 4095)
+  secureClient.setInsecure(); // Use a root CA certificate instead for production HTTPS verification.
   
   // Connect to Wi-Fi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -100,7 +105,17 @@ void loop() {
 void sendPayloadToServer(int raw, float rms, int peak, float pitch, float roll) {
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
-    http.begin(BACKEND_URL);
+
+    const bool requestStarted = String(BACKEND_URL).startsWith("https://")
+      ? http.begin(secureClient, BACKEND_URL)
+      : http.begin(plainClient, BACKEND_URL);
+
+    if (!requestStarted) {
+      Serial.println("Unable to start HTTP request. Check BACKEND_URL.");
+      return;
+    }
+
+    http.setTimeout(5000);
     http.addHeader("Content-Type", "application/json");
 
     // Create JSON document
