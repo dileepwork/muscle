@@ -21,7 +21,8 @@ const corsOptions = {
             !origin ||
             allowedOrigins.includes('*') ||
             allowedOrigins.includes(origin) ||
-            (allowLocalDevOrigins && localDevOriginPattern.test(origin))
+            (allowLocalDevOrigins && localDevOriginPattern.test(origin)) ||
+            (origin && origin.endsWith('.vercel.app'))
         ) {
             callback(null, true);
             return;
