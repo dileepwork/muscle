@@ -1,4 +1,4 @@
-const DEFAULT_MAX_RMS = 500;
+const DEFAULT_MAX_RMS = 120;
 
 const { getCalibration } = require('./localStore');
 

@@ -1,16 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Bell, Menu, Wifi, WifiOff } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Menu, Wifi, WifiOff } from 'lucide-react';
 import { API_URL, requestJson } from '../lib/api';
 
 const pageTitles = {
-  '/dashboard': 'Overview',
-  '/live': 'Live Monitoring',
-  '/history': 'History Logs',
-  '/alerts': 'Alerts',
-  '/rehabilitation': 'Rehabilitation',
+  '/dashboard': 'Monitor',
   '/calibration': 'Calibration',
-  '/settings': 'Settings',
+  '/history': 'History',
 };
 
 export default function Header({ onMenuClick }) {
@@ -56,9 +52,7 @@ export default function Header({ onMenuClick }) {
 
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-900 sm:text-base">{pageTitle}</p>
-          <p className="hidden truncate text-xs text-slate-500 sm:block">
-            API: {API_URL}
-          </p>
+          <p className="hidden truncate text-xs text-slate-500 sm:block">API: {API_URL}</p>
         </div>
       </div>
 
@@ -74,15 +68,6 @@ export default function Header({ onMenuClick }) {
           {isOnline ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
           {isOnline ? 'Backend online' : 'Backend offline'}
         </div>
-
-        <Link
-          to="/alerts"
-          aria-label="Open alerts"
-          className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
-        </Link>
       </div>
     </header>
   );

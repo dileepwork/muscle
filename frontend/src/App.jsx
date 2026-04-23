@@ -3,11 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
-import LiveMonitoring from './pages/LiveMonitoring';
 import History from './pages/History';
-import Alerts from './pages/Alerts';
-import Rehabilitation from './pages/Rehabilitation';
-import Settings from './pages/Settings';
 import Calibration from './pages/Calibration';
 
 function App() {
@@ -33,12 +29,9 @@ function App() {
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/live" element={<LiveMonitoring />} />
                 <Route path="/history" element={<History />} />
-                <Route path="/alerts" element={<Alerts />} />
-                <Route path="/rehabilitation" element={<Rehabilitation />} />
                 <Route path="/calibration" element={<Calibration />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </div>
           </main>

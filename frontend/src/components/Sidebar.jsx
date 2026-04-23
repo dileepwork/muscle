@@ -1,11 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
-  Activity,
-  ActivitySquare,
-  BellRing,
   History,
   LayoutDashboard,
-  Settings,
   X,
   Zap,
 } from 'lucide-react';
@@ -17,13 +13,9 @@ function cn(...inputs) {
 }
 
 const navItems = [
-  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { name: 'Live', path: '/live', icon: Activity },
-  { name: 'History', path: '/history', icon: History },
-  { name: 'Alerts', path: '/alerts', icon: BellRing },
-  { name: 'Rehab', path: '/rehabilitation', icon: ActivitySquare },
+  { name: 'Monitor', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Calibration', path: '/calibration', icon: Zap },
-  { name: 'Settings', path: '/settings', icon: Settings },
+  { name: 'History', path: '/history', icon: History },
 ];
 
 export default function Sidebar({ open, setOpen }) {
@@ -41,7 +33,7 @@ export default function Sidebar({ open, setOpen }) {
           </div>
           <div className="min-w-0">
             <p className="truncate text-lg font-bold tracking-tight text-slate-900">MyoSense</p>
-            <p className="text-xs font-medium text-slate-500">Muscle risk monitor</p>
+            <p className="text-xs font-medium text-slate-500">Simple EMG monitor</p>
           </div>
         </div>
         <button
@@ -79,7 +71,7 @@ export default function Sidebar({ open, setOpen }) {
         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Active Device</p>
           <p className="mt-1 text-sm font-semibold text-slate-900">ESP32_01</p>
-          <p className="text-xs text-slate-500">Use calibration before live testing.</p>
+          <p className="text-xs text-slate-500">ESP32 EMG stream</p>
         </div>
       </div>
     </aside>

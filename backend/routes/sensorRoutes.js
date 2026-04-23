@@ -43,8 +43,18 @@ const streamLimiter = rateLimit({
 
 const ADC_LOW_RAIL = 5;
 const ADC_HIGH_RAIL = 4090;
+const ADC_MIN_CONTACT_RAW = 450;
+const ADC_MAX_CONTACT_RAW = 3900;
+const MIN_VALID_RMS = 12;
+const MIN_VALID_SIGNAL_SWING = 45;
 
 const isRailReading = (value) => value <= ADC_LOW_RAIL || value >= ADC_HIGH_RAIL;
+
+const optionalNumber = (value, fallback = null) => {
+    if (value === undefined || value === null || value === '') return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 const processAndStoreData = async (req, res) => {
     try {
@@ -68,6 +78,26 @@ const processAndStoreData = async (req, res) => {
             return res.status(422).json({
                 error: 'Invalid EMG packet',
                 details: 'ADC reading is saturated or floating. Check EMG sensor wiring, shared ground, and avoid GPIO34 floating input.'
+            });
+        }
+
+        const meanRaw = optionalNumber(emg.mean ?? emg.average ?? emg.avg, rawReading.value);
+        const signalSwing = optionalNumber(
+            emg.peak_to_peak ?? emg.peakToPeak ?? emg.p2p,
+            Math.abs(peakReading.value - rawReading.value)
+        );
+
+        if (meanRaw < ADC_MIN_CONTACT_RAW || meanRaw > ADC_MAX_CONTACT_RAW) {
+            return res.status(422).json({
+                error: 'No valid EMG contact',
+                details: 'Average ADC level is too weak or too high. Attach the electrodes, power the EMG sensor correctly, and share ESP32 GND with the sensor.'
+            });
+        }
+
+        if (rmsReading.value < MIN_VALID_RMS || signalSwing < MIN_VALID_SIGNAL_SWING) {
+            return res.status(422).json({
+                error: 'No valid EMG activity',
+                details: 'Signal is too flat for a real probe reading. Move or flex the muscle after attaching the electrodes.'
             });
         }
 

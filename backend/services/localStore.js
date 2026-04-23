@@ -1,5 +1,5 @@
 const MAX_SENSOR_ROWS = 1000;
-const DEFAULT_MAX_RMS = 500;
+const DEFAULT_MAX_RMS = 120;
 
 const sensorRows = [];
 const alerts = [];

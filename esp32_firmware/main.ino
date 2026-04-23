@@ -24,13 +24,14 @@ const unsigned long SEND_INTERVAL_MS = 500;      // 2 packets/sec backend rate l
 const unsigned long WIFI_RETRY_INTERVAL_MS = 5000;
 const int MIN_SAMPLES_PER_PACKET = 40;
 
-const int ADC_MIN_VALID = 30;                    // reject near-ground disconnected/pulled-down input
-const int ADC_MAX_VALID = 4065;                  // reject saturated input
+const int ADC_MIN_VALID = 450;                   // reject disconnected/weak sensor levels like raw ~300
+const int ADC_MAX_VALID = 3900;                  // reject saturated input
 const int ADC_LOW_RAIL = 5;
 const int ADC_HIGH_RAIL = 4090;
 const int MAX_RAIL_HITS_PER_PACKET = 0;
-const int MIN_PEAK_TO_PEAK = 8;                  // reject flat/no-signal intervals
-const int MAX_PEAK_TO_PEAK = 3600;               // reject likely floating/noisy open pin intervals
+const float MIN_SIGNAL_RMS = 12.0;               // ignore tiny no-contact wiggle/noise
+const int MIN_PEAK_TO_PEAK = 45;                 // reject flat/no-signal intervals
+const int MAX_PEAK_TO_PEAK = 2200;               // reject likely floating/noisy open pin intervals
 
 const float RMS_SMOOTHING_ALPHA = 0.3;
 
@@ -86,10 +87,11 @@ void sampleEmg() {
   sampleCount++;
 }
 
-bool isValidEmgInterval(float meanRaw, int peakToPeak) {
+bool isValidEmgInterval(float meanRaw, float rms, int peakToPeak) {
   if (sampleCount < MIN_SAMPLES_PER_PACKET) return false;
   if (railHitCount > MAX_RAIL_HITS_PER_PACKET) return false;
   if (meanRaw < ADC_MIN_VALID || meanRaw > ADC_MAX_VALID) return false;
+  if (rms < MIN_SIGNAL_RMS) return false;
   if (peakToPeak < MIN_PEAK_TO_PEAK) return false;
   if (peakToPeak > MAX_PEAK_TO_PEAK) return false;
   return true;
@@ -109,7 +111,7 @@ bool beginHttp(HTTPClient& http) {
   return true;
 }
 
-void sendPayloadToServer(int raw, float rms, int peak, float pitch, float roll) {
+void sendPayloadToServer(int raw, float meanRaw, float rms, int peak, int peakToPeak, float pitch, float roll) {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi disconnected. Packet not sent.");
     connectWiFi();
@@ -124,8 +126,10 @@ void sendPayloadToServer(int raw, float rms, int peak, float pitch, float roll) 
 
   JsonObject emg = doc.createNestedObject("emg");
   emg["raw"] = raw;
+  emg["mean"] = meanRaw;
   emg["rms"] = rms;
   emg["peak"] = peak;
+  emg["peak_to_peak"] = peakToPeak;
 
   JsonObject imu = doc.createNestedObject("imu");
   JsonObject acc = imu.createNestedObject("acc");
@@ -145,8 +149,10 @@ void sendPayloadToServer(int raw, float rms, int peak, float pitch, float roll) 
   serializeJson(doc, requestBody);
 
   const int responseCode = http.POST(requestBody);
-  if (responseCode > 0) {
-    Serial.printf("Sent: raw=%d rms=%.2f peak=%d response=%d\n", raw, rms, peak, responseCode);
+  if (responseCode >= 200 && responseCode < 300) {
+    Serial.printf("Sent: raw=%d mean=%.1f rms=%.2f peak=%d p2p=%d response=%d\n", raw, meanRaw, rms, peak, peakToPeak, responseCode);
+  } else if (responseCode > 0) {
+    Serial.printf("Server rejected packet: response=%d body=%s\n", responseCode, http.getString().c_str());
   } else {
     Serial.printf("HTTP error: %d %s\n", responseCode, http.errorToString(responseCode).c_str());
   }
@@ -189,11 +195,12 @@ void loop() {
   const float currentRms = sqrt(variance);
   const int peakToPeak = maxRaw - minRaw;
 
-  if (!isValidEmgInterval(meanRaw, peakToPeak)) {
+  if (!isValidEmgInterval(meanRaw, currentRms, peakToPeak)) {
     Serial.printf(
-      "Skipped invalid EMG interval: samples=%d mean=%.1f p2p=%d min=%d max=%d\n",
+      "Skipped no-contact/invalid EMG interval: samples=%d mean=%.1f rms=%.2f p2p=%d min=%d max=%d\n",
       sampleCount,
       meanRaw,
+      currentRms,
       peakToPeak,
       minRaw,
       maxRaw
@@ -201,16 +208,19 @@ void loop() {
     if (railHitCount > 0) {
       Serial.printf("Rail hits detected: %d. Check EMG wiring/power/reference ground.\n", railHitCount);
     }
+    smoothedRms = 0;
     resetPacketStats();
     return;
   }
 
-  smoothedRms = (smoothedRms * (1.0 - RMS_SMOOTHING_ALPHA)) + (currentRms * RMS_SMOOTHING_ALPHA);
+  smoothedRms = smoothedRms <= 0
+    ? currentRms
+    : (smoothedRms * (1.0 - RMS_SMOOTHING_ALPHA)) + (currentRms * RMS_SMOOTHING_ALPHA);
 
   // Neutral IMU values. Add real MPU6050/MPU9250 reads here if your hardware includes an IMU.
   const float pitch = 0;
   const float roll = 0;
 
-  sendPayloadToServer(latestRaw, smoothedRms, maxRaw, pitch, roll);
+  sendPayloadToServer(latestRaw, meanRaw, smoothedRms, maxRaw, peakToPeak, pitch, roll);
   resetPacketStats();
 }

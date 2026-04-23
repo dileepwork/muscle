@@ -1,4 +1,6 @@
-const DEFAULT_API_URL = 'http://localhost:5000';
+const LOCAL_API_URL = 'http://localhost:5000';
+const PRODUCTION_API_URL = 'https://muscle-gilt.vercel.app';
+const DEFAULT_API_URL = import.meta.env.PROD ? PRODUCTION_API_URL : LOCAL_API_URL;
 
 export const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
 

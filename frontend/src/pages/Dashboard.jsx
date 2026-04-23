@@ -1,49 +1,35 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ActivitySquare, BrainCircuit, Clock, HeartPulse, RefreshCw, ShieldAlert } from 'lucide-react';
-import { Line, LineChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, AlertTriangle, CheckCircle2, Clock, Radio, RefreshCw, Zap } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { io } from 'socket.io-client';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import PageHeader from '../components/PageHeader';
 import StatusCard from '../components/StatusCard';
 import { API_URL, requestJson } from '../lib/api';
 import { formatDateTime, formatNumber, normalizeSensorRow, riskStatus, titleCase } from '../lib/format';
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
+const DEVICE_ID = 'ESP32_01';
+const DEFAULT_MAX_RMS = 120;
+const LIVE_SAMPLE_MAX_AGE_MS = 15000;
+const MIN_VISIBLE_RMS = 12;
+const MIN_VISIBLE_RAW = 450;
 
 const createEmptyChartData = () =>
-  Array.from({ length: 20 }, (_, i) => ({
-    time: `-${19 - i}s`,
-    emg_raw: 0,
-    emg_rms: 0,
+  Array.from({ length: 24 }, (_, index) => ({
+    time: `-${23 - index}s`,
+    rms: 0,
   }));
 
 const initialAnalysis = {
-  device_id: 'ESP32_01',
+  device_id: DEVICE_ID,
   fatigue: 'low',
   posture: 'good',
   risk: 'normal',
+  emg_raw: 0,
+  emg_rms: 0,
+  emg_peak: 0,
   pitch: 0,
   roll: 0,
   created_at: null,
-};
-
-const LIVE_SAMPLE_MAX_AGE_MS = 15000;
-
-const statusFromFatigue = (fatigue) => {
-  if (fatigue === 'high') return 'Risk';
-  if (fatigue === 'moderate') return 'Warning';
-  return 'Normal';
-};
-
-const statusFromRisk = (risk) => {
-  const status = riskStatus(risk);
-  if (status === 'risk') return 'Risk';
-  if (status === 'warning') return 'Warning';
-  return 'Normal';
 };
 
 const toChartPoint = (sample) => ({
@@ -54,8 +40,7 @@ const toChartPoint = (sample) => ({
       minute: '2-digit',
       second: '2-digit',
     }),
-  emg_raw: sample.emg_raw,
-  emg_rms: sample.emg_rms,
+  rms: Math.max(0, sample.emg_rms),
 });
 
 const isLiveSample = (sample) => {
@@ -63,12 +48,51 @@ const isLiveSample = (sample) => {
   return Number.isFinite(createdAt) && Date.now() - createdAt <= LIVE_SAMPLE_MAX_AGE_MS;
 };
 
+const isUsableSample = (sample) => isLiveSample(sample) && sample.emg_rms >= MIN_VISIBLE_RMS && sample.emg_raw >= MIN_VISIBLE_RAW;
+
+const signalTone = (isLive, risk) => {
+  if (!isLive) {
+    return {
+      label: 'No valid probe signal',
+      status: 'Neutral',
+      className: 'border-slate-200 bg-white text-slate-700',
+      icon: Radio,
+    };
+  }
+
+  const status = riskStatus(risk);
+  if (status === 'risk') {
+    return {
+      label: 'High risk',
+      status: 'Risk',
+      className: 'border-red-200 bg-red-50 text-red-700',
+      icon: AlertTriangle,
+    };
+  }
+
+  if (status === 'warning') {
+    return {
+      label: 'Watch signal',
+      status: 'Warning',
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      icon: AlertTriangle,
+    };
+  }
+
+  return {
+    label: 'Live signal',
+    status: 'Normal',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    icon: CheckCircle2,
+  };
+};
+
 export default function Dashboard() {
   const [data, setData] = useState(createEmptyChartData);
-  const [alerts, setAlerts] = useState([]);
   const [streamStatus, setStreamStatus] = useState('waiting');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [maxRms, setMaxRms] = useState(DEFAULT_MAX_RMS);
   const [currentAnalysis, setCurrentAnalysis] = useState(initialAnalysis);
 
   const socketRef = useRef(null);
@@ -86,15 +110,18 @@ export default function Dashboard() {
     setLoadError('');
 
     try {
-      const [latestRows, alertRows] = await Promise.all([
-        requestJson('/api/sensor-data/latest'),
-        requestJson('/api/alerts?resolved=false'),
+      const [latestRows, calibration] = await Promise.all([
+        requestJson(`/api/sensor-data/latest?device_id=${encodeURIComponent(DEVICE_ID)}`),
+        requestJson(`/api/device/calibration/${encodeURIComponent(DEVICE_ID)}`).catch(() => ({ max_rms: DEFAULT_MAX_RMS })),
       ]);
 
-      const samples = latestRows.map(normalizeSensorRow).filter(isLiveSample).reverse();
+      const nextMaxRms = Number(calibration?.max_rms);
+      setMaxRms(Number.isFinite(nextMaxRms) && nextMaxRms > 0 ? nextMaxRms : DEFAULT_MAX_RMS);
+
+      const samples = latestRows.map(normalizeSensorRow).filter(isUsableSample).reverse();
       if (samples.length) {
         const latestSample = samples[samples.length - 1];
-        const padded = [...createEmptyChartData(), ...samples.map(toChartPoint)].slice(-20);
+        const padded = [...createEmptyChartData(), ...samples.map(toChartPoint)].slice(-24);
         setData(padded);
         setCurrentAnalysis(latestSample);
         lastSampleAtRef.current = Date.now();
@@ -105,18 +132,6 @@ export default function Dashboard() {
         lastSampleAtRef.current = 0;
         setStreamStatus('waiting');
       }
-
-      setAlerts(
-        samples.length
-          ? alertRows.slice(0, 10).map((alert) => ({
-              id: alert.id,
-              time: formatDateTime(alert.created_at),
-              type: alert.type,
-              desc: alert.message,
-              level: alert.severity,
-            }))
-          : []
-      );
     } catch (error) {
       setLoadError(error.message);
     } finally {
@@ -132,22 +147,7 @@ export default function Dashboard() {
     socketRef.current = io(API_URL, { reconnectionAttempts: 3, timeout: 3000 });
 
     socketRef.current.on('sensor_update', (payload) => {
-      const sample = normalizeSensorRow(payload);
-      pushSample(sample);
-
-      if (riskStatus(sample.risk) !== 'normal') {
-        setAlerts((previous) => {
-          const nextAlert = {
-            id: `${Date.now()}-${sample.risk}`,
-            time: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' }),
-            type: sample.risk === 'critical' ? 'Critical Risk Detected' : 'Safety Warning',
-            desc: `Fatigue: ${titleCase(sample.fatigue)}, Posture: ${titleCase(sample.posture)}`,
-            level: sample.risk === 'critical' ? 'Critical' : 'Warning',
-          };
-
-          return [nextAlert, ...previous].slice(0, 10);
-        });
-      }
+      pushSample(normalizeSensorRow(payload));
     });
 
     const staleCheckInterval = setInterval(() => {
@@ -157,7 +157,6 @@ export default function Dashboard() {
       setStreamStatus('waiting');
       setCurrentAnalysis(initialAnalysis);
       setData(createEmptyChartData());
-      setAlerts([]);
     }, 1000);
 
     return () => {
@@ -168,25 +167,24 @@ export default function Dashboard() {
   }, [loadInitialData, pushSample]);
 
   const isLive = streamStatus === 'live';
-  const streamLabel = isLive ? 'Live stream' : 'Waiting for ESP32';
-  const riskLabel = statusFromRisk(currentAnalysis.risk);
+  const tone = signalTone(isLive, currentAnalysis.risk);
+  const ToneIcon = tone.icon;
+  const effortPercent = useMemo(() => {
+    if (!isLive) return 0;
+    return Math.min(100, Math.round((currentAnalysis.emg_rms / maxRms) * 100));
+  }, [currentAnalysis.emg_rms, isLive, maxRms]);
+
+  const lastSeen = currentAnalysis.created_at ? formatDateTime(currentAnalysis.created_at) : 'Waiting';
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Muscle Fatigue Overview"
-        description="Live EMG and posture analysis with clear risk status for the current device."
-      >
-        <div
-          className={`badge ${
-            isLive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'
-          }`}
-        >
-          <span className={`h-2 w-2 rounded-full ${isLive ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          {streamLabel}
+    <div className="space-y-5">
+      <PageHeader title="EMG Monitor" description="Live ESP32 muscle signal for the active device.">
+        <div className={`badge ${tone.className}`}>
+          <span className={`h-2 w-2 rounded-full ${isLive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+          {tone.label}
         </div>
         <button type="button" onClick={loadInitialData} disabled={isRefreshing} className="btn-outline">
-          <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
+          <RefreshCw className={isRefreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
           Refresh
         </button>
       </PageHeader>
@@ -197,128 +195,146 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className={`rounded-lg border p-5 shadow-sm ${tone.className}`}>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-current/20 bg-white/70">
+              <ToneIcon className="h-7 w-7" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold uppercase tracking-wide opacity-75">Current State</p>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{tone.label}</h1>
+              <p className="mt-1 text-sm opacity-80">{isLive ? `Last packet ${lastSeen}` : 'Waiting for a clean EMG packet.'}</p>
+            </div>
+          </div>
+
+          <div className="min-w-[130px] rounded-lg border border-current/20 bg-white/75 px-4 py-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-wide opacity-70">Effort</p>
+            <p className="mt-1 text-4xl font-bold text-slate-950">{isLive ? `${effortPercent}%` : '--'}</p>
+          </div>
+        </div>
+        <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/70">
+          <div
+            className={`h-full rounded-full transition-all ${
+              riskStatus(currentAnalysis.risk) === 'risk'
+                ? 'bg-red-600'
+                : riskStatus(currentAnalysis.risk) === 'warning'
+                  ? 'bg-amber-500'
+                  : 'bg-emerald-500'
+            }`}
+            style={{ width: `${effortPercent}%` }}
+          />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatusCard
-          title="Overall Risk"
-          value={isLive ? titleCase(currentAnalysis.risk) : '--'}
-          status={isLive ? riskLabel : 'Neutral'}
-          icon={ShieldAlert}
-          description={isLive ? `Device ${currentAnalysis.device_id}` : 'No live ESP32 packet'}
+          title="RMS Signal"
+          value={isLive ? formatNumber(currentAnalysis.emg_rms) : '--'}
+          status={tone.status}
+          icon={Activity}
+          description="Filtered muscle activity"
         />
         <StatusCard
-          title="Muscle Fatigue"
-          value={isLive ? titleCase(currentAnalysis.fatigue) : '--'}
-          status={isLive ? statusFromFatigue(currentAnalysis.fatigue) : 'Neutral'}
-          icon={ActivitySquare}
-          description="Based on calibrated RMS ratio"
-        />
-        <StatusCard
-          title="Posture"
-          value={isLive ? titleCase(currentAnalysis.posture) : '--'}
-          status={isLive ? (currentAnalysis.posture === 'good' ? 'Normal' : 'Warning') : 'Neutral'}
-          icon={HeartPulse}
-          description="Pitch and roll inclination"
-        />
-        <StatusCard
-          title="Pitch / Roll"
-          value={isLive ? `${formatNumber(currentAnalysis.pitch)} deg / ${formatNumber(currentAnalysis.roll)} deg` : '--'}
+          title="Peak ADC"
+          value={isLive ? formatNumber(currentAnalysis.emg_peak, 0) : '--'}
           status="Neutral"
-          icon={BrainCircuit}
-          description="Current IMU position"
+          icon={Radio}
+          description="Highest recent analog value"
+        />
+        <StatusCard
+          title="Raw ADC"
+          value={isLive ? formatNumber(currentAnalysis.emg_raw, 0) : '--'}
+          status="Neutral"
+          icon={Zap}
+          description={`Device ${currentAnalysis.device_id || DEVICE_ID}`}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="card xl:col-span-2">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="card">
           <div className="card-header">
             <div>
-              <h2 className="card-title">Live EMG Activity</h2>
-              <p className="mt-1 text-xs text-slate-500">Raw EMG compared with smoothed RMS values.</p>
+              <h2 className="card-title">RMS Activity</h2>
+              <p className="mt-1 text-xs text-slate-500">Recent valid RMS signal.</p>
             </div>
             <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <Clock className="h-4 w-4" />
-              {currentAnalysis.created_at ? formatDateTime(currentAnalysis.created_at) : 'Waiting for data'}
+              {lastSeen}
             </div>
           </div>
           <div className="card-body min-w-0 overflow-hidden">
-            <ResponsiveContainer width="100%" height={340} minWidth={0}>
-              <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+            <ResponsiveContainer width="100%" height={320} minWidth={0}>
+              <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                <defs>
+                  <linearGradient id="rmsFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0f766e" stopOpacity={0.28} />
+                    <stop offset="95%" stopColor="#0f766e" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} width={42} />
+                <YAxis
+                  stroke="#94a3b8"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  width={42}
+                  domain={[0, (dataMax) => Math.max(40, Math.ceil(dataMax + 10))]}
+                />
                 <Tooltip
+                  formatter={(value) => [formatNumber(value), 'RMS']}
                   contentStyle={{
                     borderRadius: '8px',
                     border: '1px solid #e2e8f0',
                     boxShadow: '0 10px 25px -18px rgb(15 23 42 / 0.35)',
                   }}
                 />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                <Line
+                <Area
                   type="monotone"
-                  name="Raw EMG"
-                  dataKey="emg_raw"
-                  stroke="#64748b"
-                  strokeWidth={2}
-                  strokeOpacity={0.55}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-                <Line
-                  type="monotone"
-                  name="RMS"
-                  dataKey="emg_rms"
-                  stroke="#2563eb"
+                  dataKey="rms"
+                  stroke="#0f766e"
                   strokeWidth={3}
+                  fill="url(#rmsFill)"
                   dot={false}
-                  activeDot={{ r: 5, fill: '#2563eb', stroke: '#fff', strokeWidth: 2 }}
+                  activeDot={{ r: 5, fill: '#0f766e', stroke: '#fff', strokeWidth: 2 }}
                   isAnimationActive={false}
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="card flex flex-col">
+        <div className="card">
           <div className="card-header">
             <div>
-              <h2 className="card-title">Recent Alerts</h2>
-              <p className="mt-1 text-xs text-slate-500">Latest unresolved safety events.</p>
+              <h2 className="card-title">Last Packet</h2>
+              <p className="mt-1 text-xs text-slate-500">Active stream details.</p>
             </div>
           </div>
-          <div className="min-h-[320px] flex-1 overflow-y-auto">
-            {alerts.length === 0 ? (
-              <div className="flex h-full min-h-[260px] flex-col items-center justify-center px-6 text-center text-slate-500">
-                <ShieldAlert className="mb-3 h-9 w-9 text-emerald-500" />
-                <p className="text-sm font-semibold text-slate-800">No active alerts</p>
-                <p className="mt-1 text-sm">{isLive ? 'Current readings are inside the safe range.' : 'No live hardware readings yet.'}</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {alerts.map((alert) => (
-                  <div key={alert.id} className="flex items-start gap-3 p-4">
-                    <div
-                      className={cn(
-                        'mt-0.5 rounded-lg p-2',
-                        alert.level === 'Critical' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
-                      )}
-                    >
-                      <ShieldAlert className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">{alert.type}</p>
-                      <p className="mt-1 text-xs leading-5 text-slate-500">{alert.desc}</p>
-                      <p className="mt-1 text-xs text-slate-400">{alert.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="border-t border-slate-100 bg-slate-50/70 p-4">
-            <Link to="/alerts" className="btn-outline w-full">
-              View alert history
-            </Link>
+          <div className="card-body space-y-4 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Risk</span>
+              <span className={`badge ${tone.className}`}>{isLive ? titleCase(currentAnalysis.risk) : '--'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Fatigue</span>
+              <span className="font-semibold text-slate-900">{isLive ? titleCase(currentAnalysis.fatigue) : '--'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Posture</span>
+              <span className="font-semibold text-slate-900">{isLive ? titleCase(currentAnalysis.posture) : '--'}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Pitch / Roll</span>
+              <span className="font-semibold text-slate-900">
+                {isLive ? `${formatNumber(currentAnalysis.pitch)} / ${formatNumber(currentAnalysis.roll)} deg` : '--'}
+              </span>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Calibration Max RMS</p>
+              <p className="mt-1 text-lg font-bold text-slate-900">{formatNumber(maxRms, 0)}</p>
+            </div>
           </div>
         </div>
       </div>
