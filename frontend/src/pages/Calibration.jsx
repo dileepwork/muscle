@@ -25,7 +25,8 @@ export default function Calibration() {
 
   const saveCalibration = async () => {
     try {
-      await axios.post('http://localhost:5000/api/device/calibrate', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      await axios.post(`${backendUrl}/api/device/calibrate`, {
         device_id: deviceId,
         baseline_rms: baseline,
         max_rms: peak

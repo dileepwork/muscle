@@ -35,7 +35,8 @@ export default function Dashboard() {
     setData(initialData);
 
     // 1. Connect WebSocket
-    socketRef.current = io('http://localhost:5000');
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    socketRef.current = io(backendUrl);
     
     socketRef.current.on('connect', () => {
       console.log('Connected to WebSocket server');

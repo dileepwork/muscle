@@ -63,6 +63,11 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Something went wrong!', details: err.message });
 });
 
-server.listen(PORT, () => {
-    console.log(`Server & WebSocket running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production') {
+    server.listen(PORT, () => {
+        console.log(`Server & WebSocket running on port ${PORT}`);
+    });
+}
+
+// Export the Express app for Vercel serverless deployment
+module.exports = server;
