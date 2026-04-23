@@ -154,6 +154,29 @@ const processAndStoreData = async (req, res) => {
     }
 };
 
+router.get('/stream', (req, res) => {
+    res.status(200).json({
+        status: 'ready',
+        message: 'This endpoint receives ESP32 sensor packets with POST. Browser address bars send GET, so use the ESP32 firmware or a POST request to test streaming.',
+        method: 'POST',
+        path: '/api/sensor-data/stream',
+        examplePayload: {
+            device_id: 'ESP32_01',
+            emg: {
+                raw: 512,
+                rms: 42.5,
+                peak: 620
+            },
+            imu: {
+                acc: { x: 0, y: 0, z: 9.81 },
+                gyro: { x: 0, y: 0, z: 0 },
+                pitch: 0,
+                roll: 0
+            }
+        }
+    });
+});
+
 router.post('/', processAndStoreData);
 router.post('/stream', streamLimiter, processAndStoreData);
 

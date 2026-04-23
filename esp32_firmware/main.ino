@@ -3,158 +3,208 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
-// ==========================================
-// CONFIGURATION
-// ==========================================
-const char* WIFI_SSID     = "project1";
+// =============================
+// Wi-Fi and backend config
+// =============================
+const char* WIFI_SSID = "project1";
 const char* WIFI_PASSWORD = "1234567001";
+const char* BACKEND_URL = "https://muscle-gilt.vercel.app/api/sensor-data/stream";
 
-// Replace YOUR_PC_IP with the IPv4 address of your computer running the Node.js backend
-// Example: http://192.168.1.100:5000/api/sensor-data/stream
-const char* BACKEND_URL   = "https://muscle-gilt.vercel.app/api/sensor-data/stream";
+const char* DEVICE_ID = "ESP32_01";
 
-const String DEVICE_ID    = "ESP32_01";
-const int EMG_PIN         = 34; // Analog pin for EMG sensor
+// GPIO34 is ADC input only and has no internal pull-down resistor.
+// If readings appear without a sensor connected, add a 100k resistor from GPIO34 to GND,
+// or move the sensor signal to GPIO32/33 and enable INPUT_PULLDOWN below.
+const int EMG_PIN = 34;
+
+// =============================
+// Sampling and validation
+// =============================
+const unsigned long SAMPLE_INTERVAL_MS = 5;      // 200 Hz sampling
+const unsigned long SEND_INTERVAL_MS = 500;      // 2 packets/sec backend rate limit
+const unsigned long WIFI_RETRY_INTERVAL_MS = 5000;
+const int MIN_SAMPLES_PER_PACKET = 40;
+
+const int ADC_MIN_VALID = 30;                    // reject near-ground disconnected/pulled-down input
+const int ADC_MAX_VALID = 4065;                  // reject saturated input
+const int MIN_PEAK_TO_PEAK = 8;                  // reject flat/no-signal intervals
+const int MAX_PEAK_TO_PEAK = 3600;               // reject likely floating/noisy open pin intervals
+
+const float RMS_SMOOTHING_ALPHA = 0.3;
 
 WiFiClient plainClient;
 WiFiClientSecure secureClient;
 
-// ==========================================
-// TIMING & SIGNAL PROCESSING VARIABLES
-// ==========================================
-unsigned long lastSendTime = 0;
-const unsigned long sendInterval = 500; // Send payload every 500ms (max 2 per sec to respect rate limits)
-
-// EMG Sampling
 unsigned long lastSampleTime = 0;
-const int sampleInterval = 5; // Sample every 5ms (200Hz)
-float sumOfSquares = 0;
+unsigned long lastSendTime = 0;
+unsigned long lastWifiAttempt = 0;
+
+double sumRaw = 0;
+double sumSquares = 0;
 int sampleCount = 0;
-int peakEMG = 0;
+int latestRaw = 0;
+int minRaw = 4095;
+int maxRaw = 0;
+float smoothedRms = 0;
 
-// Exponential Moving Average (EMA) smoothing for RMS
-float smoothedRMS = 0;
-const float alpha = 0.3; // Smoothing factor (0.0 to 1.0)
+void connectWiFi() {
+  if (WiFi.status() == WL_CONNECTED) return;
 
-void setup() {
-  Serial.begin(115200);
-  analogReadResolution(12); // ESP32 has 12-bit ADC (0 - 4095)
-  secureClient.setInsecure(); // Use a root CA certificate instead for production HTTPS verification.
-  
-  // Connect to Wi-Fi
+  const unsigned long now = millis();
+  if (lastWifiAttempt != 0 && now - lastWifiAttempt < WIFI_RETRY_INTERVAL_MS) return;
+  lastWifiAttempt = now;
+
+  Serial.print("Connecting to WiFi: ");
+  Serial.println(WIFI_SSID);
+  WiFi.disconnect();
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nConnected to WiFi!");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
 }
 
-void loop() {
-  unsigned long currentMillis = millis();
+void resetPacketStats() {
+  sumRaw = 0;
+  sumSquares = 0;
+  sampleCount = 0;
+  latestRaw = 0;
+  minRaw = 4095;
+  maxRaw = 0;
+}
 
-  // 1. CONTINUOUS NON-BLOCKING SAMPLING
-  if (currentMillis - lastSampleTime >= sampleInterval) {
-    lastSampleTime = currentMillis;
-    
-    int rawEMG = analogRead(EMG_PIN);
-    
-    // Track Peak
-    if (rawEMG > peakEMG) {
-      peakEMG = rawEMG;
-    }
-    
-    // Accumulate for RMS
-    // Assuming the signal is centered. If not, you may need to subtract DC offset first.
-    sumOfSquares += (float)rawEMG * (float)rawEMG;
-    sampleCount++;
+void sampleEmg() {
+  const int raw = analogRead(EMG_PIN);
+  latestRaw = raw;
+  minRaw = min(minRaw, raw);
+  maxRaw = max(maxRaw, raw);
+  sumRaw += raw;
+  sumSquares += (double)raw * raw;
+  sampleCount++;
+}
+
+bool isValidEmgInterval(float meanRaw, int peakToPeak) {
+  if (sampleCount < MIN_SAMPLES_PER_PACKET) return false;
+  if (meanRaw < ADC_MIN_VALID || meanRaw > ADC_MAX_VALID) return false;
+  if (peakToPeak < MIN_PEAK_TO_PEAK) return false;
+  if (peakToPeak > MAX_PEAK_TO_PEAK) return false;
+  return true;
+}
+
+bool beginHttp(HTTPClient& http) {
+  const bool isHttps = String(BACKEND_URL).startsWith("https://");
+  const bool started = isHttps ? http.begin(secureClient, BACKEND_URL) : http.begin(plainClient, BACKEND_URL);
+
+  if (!started) {
+    Serial.println("HTTP begin failed. Check BACKEND_URL.");
+    return false;
   }
 
-  // 2. SEND DATA AT SPECIFIED INTERVAL
-  if (currentMillis - lastSendTime >= sendInterval) {
-    lastSendTime = currentMillis;
-    
-    if (sampleCount > 0) {
-      // Calculate current interval RMS
-      float currentRMS = sqrt(sumOfSquares / sampleCount);
-      
-      // Apply EMA smoothing filter
-      smoothedRMS = (smoothedRMS * (1.0 - alpha)) + (currentRMS * alpha);
-      
-      // Grab current raw value just for telemetry
-      int currentRaw = analogRead(EMG_PIN);
-
-      // (Simulated) Read IMU Data. Replace this with real MPU6050 reading logic
-      float pitch = random(-5, 5); 
-      float roll = random(-2, 2);
-
-      // Send to Backend
-      sendPayloadToServer(currentRaw, smoothedRMS, peakEMG, pitch, roll);
-
-      // Reset accumulators for next interval
-      sumOfSquares = 0;
-      sampleCount = 0;
-      peakEMG = 0;
-    }
-  }
+  http.setTimeout(5000);
+  http.addHeader("Content-Type", "application/json");
+  return true;
 }
 
 void sendPayloadToServer(int raw, float rms, int peak, float pitch, float roll) {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-
-    const bool requestStarted = String(BACKEND_URL).startsWith("https://")
-      ? http.begin(secureClient, BACKEND_URL)
-      : http.begin(plainClient, BACKEND_URL);
-
-    if (!requestStarted) {
-      Serial.println("Unable to start HTTP request. Check BACKEND_URL.");
-      return;
-    }
-
-    http.setTimeout(5000);
-    http.addHeader("Content-Type", "application/json");
-
-    // Create JSON document
-    // Capacity 512 bytes is generally enough for this payload
-    StaticJsonDocument<512> doc;
-    
-    doc["device_id"] = DEVICE_ID;
-    
-    // Add EMG Data
-    JsonObject emg = doc.createNestedObject("emg");
-    emg["raw"] = raw;
-    emg["rms"] = rms;
-    emg["peak"] = peak;
-
-    // Add IMU Data
-    JsonObject imu = doc.createNestedObject("imu");
-    JsonObject acc = imu.createNestedObject("acc");
-    acc["x"] = 0; acc["y"] = 0; acc["z"] = 9.81;
-    JsonObject gyro = imu.createNestedObject("gyro");
-    gyro["x"] = 0; gyro["y"] = 0; gyro["z"] = 0;
-    imu["pitch"] = pitch;
-    imu["roll"] = roll;
-
-    // Serialize JSON into string
-    String requestBody;
-    serializeJson(doc, requestBody);
-
-    // Send POST Request
-    int httpResponseCode = http.POST(requestBody);
-
-    if (httpResponseCode > 0) {
-      Serial.printf("HTTP Response code: %d\n", httpResponseCode);
-    } else {
-      Serial.printf("Error code: %d\n", httpResponseCode);
-      Serial.println(http.errorToString(httpResponseCode).c_str());
-    }
-    
-    http.end();
-  } else {
-    Serial.println("WiFi Disconnected. Cannot send data.");
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi disconnected. Packet not sent.");
+    connectWiFi();
+    return;
   }
+
+  HTTPClient http;
+  if (!beginHttp(http)) return;
+
+  StaticJsonDocument<512> doc;
+  doc["device_id"] = DEVICE_ID;
+
+  JsonObject emg = doc.createNestedObject("emg");
+  emg["raw"] = raw;
+  emg["rms"] = rms;
+  emg["peak"] = peak;
+
+  JsonObject imu = doc.createNestedObject("imu");
+  JsonObject acc = imu.createNestedObject("acc");
+  acc["x"] = 0;
+  acc["y"] = 0;
+  acc["z"] = 9.81;
+
+  JsonObject gyro = imu.createNestedObject("gyro");
+  gyro["x"] = 0;
+  gyro["y"] = 0;
+  gyro["z"] = 0;
+
+  imu["pitch"] = pitch;
+  imu["roll"] = roll;
+
+  String requestBody;
+  serializeJson(doc, requestBody);
+
+  const int responseCode = http.POST(requestBody);
+  if (responseCode > 0) {
+    Serial.printf("Sent: raw=%d rms=%.2f peak=%d response=%d\n", raw, rms, peak, responseCode);
+  } else {
+    Serial.printf("HTTP error: %d %s\n", responseCode, http.errorToString(responseCode).c_str());
+  }
+
+  http.end();
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  analogReadResolution(12);
+  analogSetPinAttenuation(EMG_PIN, ADC_11db);
+  if (EMG_PIN == 32 || EMG_PIN == 33) {
+    pinMode(EMG_PIN, INPUT_PULLDOWN);
+  } else {
+    pinMode(EMG_PIN, INPUT);
+  }
+
+  secureClient.setInsecure();
+  WiFi.mode(WIFI_STA);
+  connectWiFi();
+
+  Serial.println("ESP32 muscle monitor started.");
+  Serial.println("Waiting for valid EMG signal before sending packets.");
+}
+
+void loop() {
+  connectWiFi();
+
+  const unsigned long now = millis();
+  if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
+    lastSampleTime = now;
+    sampleEmg();
+  }
+
+  if (now - lastSendTime < SEND_INTERVAL_MS) return;
+  lastSendTime = now;
+
+  if (sampleCount == 0) return;
+
+  const float meanRaw = sumRaw / sampleCount;
+  const double varianceValue = (sumSquares / sampleCount) - ((double)meanRaw * meanRaw);
+  const float variance = varianceValue > 0 ? varianceValue : 0;
+  const float currentRms = sqrt(variance);
+  const int peakToPeak = maxRaw - minRaw;
+
+  if (!isValidEmgInterval(meanRaw, peakToPeak)) {
+    Serial.printf(
+      "Skipped invalid EMG interval: samples=%d mean=%.1f p2p=%d min=%d max=%d\n",
+      sampleCount,
+      meanRaw,
+      peakToPeak,
+      minRaw,
+      maxRaw
+    );
+    resetPacketStats();
+    return;
+  }
+
+  smoothedRms = (smoothedRms * (1.0 - RMS_SMOOTHING_ALPHA)) + (currentRms * RMS_SMOOTHING_ALPHA);
+
+  // Neutral IMU values. Add real MPU6050/MPU9250 reads here if your hardware includes an IMU.
+  const float pitch = 0;
+  const float roll = 0;
+
+  sendPayloadToServer(latestRaw, smoothedRms, maxRaw, pitch, roll);
+  resetPacketStats();
 }
