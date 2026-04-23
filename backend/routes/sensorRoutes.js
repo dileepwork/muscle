@@ -43,10 +43,10 @@ const streamLimiter = rateLimit({
 
 const ADC_LOW_RAIL = 5;
 const ADC_HIGH_RAIL = 4090;
-const ADC_MIN_CONTACT_RAW = 450;
+const ADC_MIN_CONTACT_RAW = 120;
 const ADC_MAX_CONTACT_RAW = 3900;
-const MIN_VALID_RMS = 12;
-const MIN_VALID_SIGNAL_SWING = 45;
+const MIN_VALID_RMS = 18;
+const MIN_VALID_SIGNAL_SWING = 85;
 
 const isRailReading = (value) => value <= ADC_LOW_RAIL || value >= ADC_HIGH_RAIL;
 
@@ -90,14 +90,14 @@ const processAndStoreData = async (req, res) => {
         if (meanRaw < ADC_MIN_CONTACT_RAW || meanRaw > ADC_MAX_CONTACT_RAW) {
             return res.status(422).json({
                 error: 'No valid EMG contact',
-                details: 'Average ADC level is too weak or too high. Attach the electrodes, power the EMG sensor correctly, and share ESP32 GND with the sensor.'
+                details: 'Average ADC level is too weak or too high. Check sensor power, output pin, and shared ESP32 GND.'
             });
         }
 
         if (rmsReading.value < MIN_VALID_RMS || signalSwing < MIN_VALID_SIGNAL_SWING) {
             return res.status(422).json({
                 error: 'No valid EMG activity',
-                details: 'Signal is too flat for a real probe reading. Move or flex the muscle after attaching the electrodes.'
+                details: 'Signal is too flat for a real muscle reading. Attach the electrodes and flex the muscle.'
             });
         }
 

@@ -10,8 +10,8 @@ import { formatDateTime, formatNumber, normalizeSensorRow, riskStatus, titleCase
 const DEVICE_ID = 'ESP32_01';
 const DEFAULT_MAX_RMS = 120;
 const LIVE_SAMPLE_MAX_AGE_MS = 15000;
-const MIN_VISIBLE_RMS = 12;
-const MIN_VISIBLE_RAW = 450;
+const MIN_VISIBLE_RMS = 18;
+const MIN_VISIBLE_RAW = 120;
 
 const createEmptyChartData = () =>
   Array.from({ length: 24 }, (_, index) => ({

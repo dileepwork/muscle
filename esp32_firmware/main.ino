@@ -11,6 +11,7 @@ const char* WIFI_PASSWORD = "1234567001";
 const char* BACKEND_URL = "https://muscle-gilt.vercel.app/api/sensor-data/stream";
 
 const char* DEVICE_ID = "ESP32_01";
+const char* FIRMWARE_VERSION = "emg-filter-v2";
 
 // GPIO34 is ADC input only and has no internal pull-down resistor.
 // Use an external 100k resistor from GPIO34 to GND to prevent floating readings.
@@ -22,15 +23,16 @@ const int EMG_PIN = 34;
 const unsigned long SAMPLE_INTERVAL_MS = 5;      // 200 Hz sampling
 const unsigned long SEND_INTERVAL_MS = 500;      // 2 packets/sec backend rate limit
 const unsigned long WIFI_RETRY_INTERVAL_MS = 5000;
+const unsigned long INVALID_LOG_INTERVAL_MS = 2000;
 const int MIN_SAMPLES_PER_PACKET = 40;
 
-const int ADC_MIN_VALID = 450;                   // reject disconnected/weak sensor levels like raw ~300
+const int ADC_MIN_VALID = 120;                   // reject open/near-ground input but allow low-bias EMG modules
 const int ADC_MAX_VALID = 3900;                  // reject saturated input
 const int ADC_LOW_RAIL = 5;
 const int ADC_HIGH_RAIL = 4090;
 const int MAX_RAIL_HITS_PER_PACKET = 0;
-const float MIN_SIGNAL_RMS = 12.0;               // ignore tiny no-contact wiggle/noise
-const int MIN_PEAK_TO_PEAK = 45;                 // reject flat/no-signal intervals
+const float MIN_SIGNAL_RMS = 18.0;               // ignore tiny no-contact wiggle/noise
+const int MIN_PEAK_TO_PEAK = 85;                 // reject flat/no-signal intervals
 const int MAX_PEAK_TO_PEAK = 2200;               // reject likely floating/noisy open pin intervals
 
 const float RMS_SMOOTHING_ALPHA = 0.3;
@@ -41,6 +43,7 @@ WiFiClientSecure secureClient;
 unsigned long lastSampleTime = 0;
 unsigned long lastSendTime = 0;
 unsigned long lastWifiAttempt = 0;
+unsigned long lastInvalidLogTime = 0;
 
 double sumRaw = 0;
 double sumSquares = 0;
@@ -87,14 +90,37 @@ void sampleEmg() {
   sampleCount++;
 }
 
+const char* getInvalidEmgReason(float meanRaw, float rms, int peakToPeak) {
+  if (sampleCount < MIN_SAMPLES_PER_PACKET) return "not enough samples";
+  if (railHitCount > MAX_RAIL_HITS_PER_PACKET) return "ADC rail hit";
+  if (meanRaw < ADC_MIN_VALID) return "ADC too low / disconnected";
+  if (meanRaw > ADC_MAX_VALID) return "ADC too high / saturated";
+  if (rms < MIN_SIGNAL_RMS) return "RMS too weak";
+  if (peakToPeak < MIN_PEAK_TO_PEAK) return "signal swing too small";
+  if (peakToPeak > MAX_PEAK_TO_PEAK) return "signal swing too large / floating";
+  return "";
+}
+
 bool isValidEmgInterval(float meanRaw, float rms, int peakToPeak) {
-  if (sampleCount < MIN_SAMPLES_PER_PACKET) return false;
-  if (railHitCount > MAX_RAIL_HITS_PER_PACKET) return false;
-  if (meanRaw < ADC_MIN_VALID || meanRaw > ADC_MAX_VALID) return false;
-  if (rms < MIN_SIGNAL_RMS) return false;
-  if (peakToPeak < MIN_PEAK_TO_PEAK) return false;
-  if (peakToPeak > MAX_PEAK_TO_PEAK) return false;
-  return true;
+  return getInvalidEmgReason(meanRaw, rms, peakToPeak)[0] == '\0';
+}
+
+void logInvalidInterval(const char* reason, float meanRaw, float rms, int peakToPeak) {
+  const unsigned long now = millis();
+  if (now - lastInvalidLogTime < INVALID_LOG_INTERVAL_MS) return;
+  lastInvalidLogTime = now;
+
+  Serial.printf(
+    "Skipped EMG packet (%s): samples=%d mean=%.1f rms=%.2f p2p=%d min=%d max=%d rails=%d\n",
+    reason,
+    sampleCount,
+    meanRaw,
+    rms,
+    peakToPeak,
+    minRaw,
+    maxRaw,
+    railHitCount
+  );
 }
 
 bool beginHttp(HTTPClient& http) {
@@ -173,6 +199,8 @@ void setup() {
   connectWiFi();
 
   Serial.println("ESP32 muscle monitor started.");
+  Serial.print("Firmware: ");
+  Serial.println(FIRMWARE_VERSION);
   Serial.println("Waiting for valid EMG signal before sending packets.");
 }
 
@@ -195,19 +223,9 @@ void loop() {
   const float currentRms = sqrt(variance);
   const int peakToPeak = maxRaw - minRaw;
 
-  if (!isValidEmgInterval(meanRaw, currentRms, peakToPeak)) {
-    Serial.printf(
-      "Skipped no-contact/invalid EMG interval: samples=%d mean=%.1f rms=%.2f p2p=%d min=%d max=%d\n",
-      sampleCount,
-      meanRaw,
-      currentRms,
-      peakToPeak,
-      minRaw,
-      maxRaw
-    );
-    if (railHitCount > 0) {
-      Serial.printf("Rail hits detected: %d. Check EMG wiring/power/reference ground.\n", railHitCount);
-    }
+  const char* invalidReason = getInvalidEmgReason(meanRaw, currentRms, peakToPeak);
+  if (invalidReason[0] != '\0') {
+    logInvalidInterval(invalidReason, meanRaw, currentRms, peakToPeak);
     smoothedRms = 0;
     resetPacketStats();
     return;
