@@ -5,12 +5,12 @@
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const char* WIFI_SSID     = "YOUR_WIFI_NAME";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char* WIFI_SSID     = "project1";
+const char* WIFI_PASSWORD = "1234567001";
 
 // Replace YOUR_PC_IP with the IPv4 address of your computer running the Node.js backend
 // Example: http://192.168.1.100:5000/api/sensor-data/stream
-const char* BACKEND_URL   = "http://192.168.203.114:5000/api/sensor-data/stream";
+const char* BACKEND_URL   = "https://muscle-gilt.vercel.app/api/sensor-data/stream";
 
 const String DEVICE_ID    = "ESP32_01";
 const int EMG_PIN         = 34; // Analog pin for EMG sensor
