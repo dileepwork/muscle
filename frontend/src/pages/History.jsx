@@ -1,166 +1,166 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, CheckCircle2, Database, RefreshCw, Search, ShieldAlert } from 'lucide-react';
-import PageHeader from '../components/PageHeader';
-import StatePanel from '../components/StatePanel';
-import StatusCard from '../components/StatusCard';
+import { AlertTriangle, CheckCircle2, Database, RefreshCw, Search, Shield } from 'lucide-react';
 import { requestJson } from '../lib/api';
-import {
-  formatDateTime,
-  formatNumber,
-  normalizeSensorRow,
-  riskStatus,
-  summarizeSensorRows,
-  titleCase,
-} from '../lib/format';
+import { formatDateTime, formatNumber, normalizeSensorRow, riskStatus, summarizeSensorRows, titleCase } from '../lib/format';
+
+function SummaryCard({ label, value, sub }) {
+  return (
+    <div className="card p-5">
+      <p className="text-xs font-medium text-neutral-500">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-neutral-100">{value}</p>
+      {sub && <p className="mt-1 text-xs text-neutral-600">{sub}</p>}
+    </div>
+  );
+}
+
+const RISK_STYLE = {
+  risk:    'border-red-900 bg-red-950 text-red-400',
+  warning: 'border-yellow-900 bg-yellow-950 text-yellow-400',
+  normal:  'border-green-900 bg-green-950 text-green-400',
+};
 
 export default function History() {
-  const [rows, setRows] = useState([]);
-  const [deviceId, setDeviceId] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [rows,      setRows]      = useState([]);
+  const [deviceId,  setDeviceId]  = useState('');
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState('');
 
   const summary = useMemo(() => summarizeSensorRows(rows), [rows]);
 
-  const loadHistory = useCallback(async (nextDeviceId = '') => {
-    setIsLoading(true);
-    setError('');
-
+  const load = useCallback(async (id = '') => {
+    setLoading(true); setError('');
     try {
-      const normalizedDeviceId = nextDeviceId.trim();
-      const query = normalizedDeviceId ? `?device_id=${encodeURIComponent(normalizedDeviceId)}` : '';
-      const data = await requestJson(`/api/sensor-data/history${query}`);
+      const q    = id.trim() ? `?device_id=${encodeURIComponent(id.trim())}` : '';
+      const data = await requestJson(`/api/sensor-data/history${q}`);
       setRows(data.map(normalizeSensorRow));
-    } catch (loadError) {
-      setError(loadError.message);
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (e) { setError(e.message); }
+    finally     { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      void loadHistory();
-    }, 0);
-
-    return () => clearTimeout(timeoutId);
-  }, [loadHistory]);
+  useEffect(() => { const t = setTimeout(() => void load(), 0); return () => clearTimeout(t); }, [load]);
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="History Logs"
-        description="Review stored sensor data, posture quality, and risk events from Supabase."
-      >
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+    <div className="space-y-5">
+
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-base font-semibold text-neutral-100">History</h1>
+          <p className="mt-0.5 text-xs text-neutral-500">Stored sensor records from the backend</p>
+        </div>
+        <div className="flex gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500" />
             <input
               value={deviceId}
-              onChange={(event) => setDeviceId(event.target.value)}
-              className="input w-full pl-9 sm:w-56"
-              placeholder="Device ID"
+              onChange={(e) => setDeviceId(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && load(deviceId)}
+              className="input pl-8 w-44" placeholder="Filter by device…"
             />
           </div>
-          <button type="button" onClick={() => loadHistory(deviceId)} disabled={isLoading} className="btn-outline">
-            <RefreshCw className={isLoading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+          <button onClick={() => load(deviceId)} disabled={loading} className="btn-outline">
+            <RefreshCw className={loading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
             Search
           </button>
         </div>
-      </PageHeader>
+      </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          History could not be loaded: {error}
+        <div className="flex items-center gap-2 rounded-lg border border-red-900 bg-red-950/60 px-4 py-3 text-sm text-red-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatusCard
-          title="Samples"
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <SummaryCard
+          label="Records"
           value={summary.total}
-          status="Neutral"
+          sub="Latest returned"
           icon={Database}
-          description="Latest records returned"
         />
-        <StatusCard
-          title="Average RMS"
+        <SummaryCard
+          label="Avg RMS"
           value={`${formatNumber(summary.avgRms)} uV`}
-          status="Neutral"
-          icon={Activity}
-          description="Mean effort across this view"
+          sub="Mean muscle activity"
         />
-        <StatusCard
-          title="Good Posture"
+        <SummaryCard
+          label="Good posture"
           value={`${summary.goodPostureRate}%`}
-          status={summary.goodPostureRate >= 80 ? 'Normal' : 'Warning'}
-          icon={CheckCircle2}
-          description="Samples marked as good"
+          sub="Of all samples"
         />
-        <StatusCard
-          title="Risk Events"
+        <SummaryCard
+          label="Risk events"
           value={summary.warningCount + summary.riskCount}
-          status={summary.riskCount > 0 ? 'Risk' : summary.warningCount > 0 ? 'Warning' : 'Normal'}
-          icon={ShieldAlert}
-          description={`${summary.riskCount} critical, ${summary.warningCount} warning`}
+          sub={`${summary.riskCount} critical · ${summary.warningCount} warning`}
         />
       </div>
 
+      {/* Table */}
       <div className="card">
         <div className="card-header">
-          <div>
-            <h2 className="card-title">Sensor Records</h2>
-            <p className="mt-1 text-xs text-slate-500">Newest records first. Use device filtering during hardware tests.</p>
-          </div>
+          <span className="card-title">Sensor Records</span>
+          <span className="text-xs text-neutral-500">Newest first</span>
         </div>
-        <div className="card-body">
-          {isLoading && rows.length === 0 ? (
-            <StatePanel type="loading" title="Loading history" message="Reading stored sensor data from the backend." />
-          ) : rows.length === 0 ? (
-            <StatePanel title="No history found" message="Send sensor data from the ESP32, then refresh this page." />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-3 font-semibold">Time</th>
-                    <th className="px-3 py-3 font-semibold">Device</th>
-                    <th className="px-3 py-3 font-semibold">RMS</th>
-                    <th className="px-3 py-3 font-semibold">Peak</th>
-                    <th className="px-3 py-3 font-semibold">Posture</th>
-                    <th className="px-3 py-3 font-semibold">Fatigue</th>
-                    <th className="px-3 py-3 font-semibold">Risk</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
-                  {rows.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatDateTime(row.created_at)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 font-medium text-slate-900">{row.device_id}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatNumber(row.emg_rms)} uV</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatNumber(row.emg_peak)} uV</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{titleCase(row.posture)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{titleCase(row.fatigue)}</td>
-                      <td className="whitespace-nowrap px-3 py-3">
-                        <span
-                          className={`badge ${
-                            riskStatus(row.risk) === 'risk'
-                              ? 'border-red-200 bg-red-50 text-red-700'
-                              : riskStatus(row.risk) === 'warning'
-                                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          }`}
-                        >
+
+        {loading && rows.length === 0 ? (
+          <div className="flex items-center justify-center py-16 text-sm text-neutral-500">
+            Loading records…
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-16">
+            <Database className="h-8 w-8 text-neutral-700" />
+            <p className="text-sm text-neutral-500">No records found. Stream data from your ESP32 first.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ borderBottom: '1px solid #1f1f1f' }}>
+                  {['Time', 'Device', 'RMS', 'Peak', 'Posture', 'Fatigue', 'Risk'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-neutral-500">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const rs = riskStatus(row.risk);
+                  return (
+                    <tr
+                      key={row.id}
+                      className="transition-colors hover:bg-neutral-900"
+                      style={{ borderBottom: '1px solid #1a1a1a' }}
+                    >
+                      <td className="px-4 py-3 text-neutral-400">{formatDateTime(row.created_at)}</td>
+                      <td className="px-4 py-3 font-medium text-neutral-200">{row.device_id}</td>
+                      <td className="px-4 py-3 text-neutral-300">{formatNumber(row.emg_rms)} uV</td>
+                      <td className="px-4 py-3 text-neutral-300">{formatNumber(row.emg_peak, 0)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`flex items-center gap-1 text-xs font-medium ${row.posture === 'good' ? 'text-green-400' : 'text-yellow-400'}`}>
+                          {row.posture === 'good'
+                            ? <CheckCircle2 className="h-3.5 w-3.5" />
+                            : <AlertTriangle className="h-3.5 w-3.5" />}
+                          {titleCase(row.posture)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-neutral-300">{titleCase(row.fatigue)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${RISK_STYLE[rs]}`}>
+                          {rs === 'risk' && <Shield className="h-3 w-3" />}
                           {titleCase(row.risk)}
                         </span>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
     </div>
   );
 }

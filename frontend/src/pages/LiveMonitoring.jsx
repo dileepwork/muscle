@@ -84,13 +84,13 @@ export default function LiveMonitoring() {
         <div
           className={`badge ${
             connection === 'connected'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-amber-200 bg-amber-50 text-amber-700'
+              ? 'border-green-900 bg-green-950 text-green-400'
+              : 'border-yellow-900 bg-yellow-950/500/10 text-amber-400'
           }`}
         >
           <span
             className={`h-2 w-2 rounded-full ${
-              connection === 'connected' ? 'bg-emerald-500' : 'bg-amber-500'
+              connection === 'connected' ? 'bg-emerald-500' : 'bg-amber-500/100'
             }`}
           />
           {connection === 'connected' ? 'Socket connected' : 'Waiting for stream'}
@@ -102,7 +102,7 @@ export default function LiveMonitoring() {
       </PageHeader>
 
       {error && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-lg border border-yellow-900 bg-yellow-950/500/10 px-4 py-3 text-sm text-amber-300 ">
           Could not load latest telemetry: {error}
         </div>
       )}
@@ -142,7 +142,7 @@ export default function LiveMonitoring() {
         <div className="card-header">
           <div>
             <h2 className="card-title">Recent Samples</h2>
-            <p className="mt-1 text-xs text-slate-500">Newest sensor packets received by the backend.</p>
+            <p className="mt-1 text-xs text-neutral-500">Newest sensor packets received by the backend.</p>
           </div>
         </div>
         <div className="card-body">
@@ -155,8 +155,8 @@ export default function LiveMonitoring() {
             />
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <table className="min-w-full divide-y divide-white/10 text-left text-sm">
+                <thead className="bg-neutral-900 text-xs uppercase tracking-wide text-neutral-500">
                   <tr>
                     <th className="px-3 py-3 font-semibold">Time</th>
                     <th className="px-3 py-3 font-semibold">Device</th>
@@ -167,23 +167,23 @@ export default function LiveMonitoring() {
                     <th className="px-3 py-3 font-semibold">Risk</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-white/5 bg-neutral-900 ">
                   {samples.map((sample) => (
-                    <tr key={sample.id} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatDateTime(sample.created_at)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 font-medium text-slate-900">{sample.device_id}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatNumber(sample.emg_raw, 0)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatNumber(sample.emg_rms)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatNumber(sample.pitch)}</td>
-                      <td className="whitespace-nowrap px-3 py-3 text-slate-600">{formatNumber(sample.roll)}</td>
+                    <tr key={sample.id} className="hover:bg-neutral-900">
+                      <td className="whitespace-nowrap px-3 py-3 text-neutral-300">{formatDateTime(sample.created_at)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 font-medium text-white">{sample.device_id}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-neutral-300">{formatNumber(sample.emg_raw, 0)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-neutral-300">{formatNumber(sample.emg_rms)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-neutral-300">{formatNumber(sample.pitch)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-neutral-300">{formatNumber(sample.roll)}</td>
                       <td className="whitespace-nowrap px-3 py-3">
                         <span
                           className={`badge ${
                             riskStatus(sample.risk) === 'risk'
-                              ? 'border-red-200 bg-red-50 text-red-700'
+                              ? 'border-red-900 bg-red-950 text-red-400'
                               : riskStatus(sample.risk) === 'warning'
-                                ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                ? 'border-yellow-900 bg-yellow-950/500/10 text-amber-400'
+                                : 'border-green-900 bg-green-950 text-green-400'
                           }`}
                         >
                           {titleCase(sample.risk)}

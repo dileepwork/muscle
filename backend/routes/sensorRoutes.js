@@ -37,7 +37,7 @@ const shouldSaveAlert = (deviceId, risk) => {
 
 const streamLimiter = rateLimit({
     windowMs: 1000,
-    max: 2,
+    max: 10,
     message: { error: 'Too many requests, please slow down.' }
 });
 
@@ -74,32 +74,16 @@ const processAndStoreData = async (req, res) => {
             });
         }
 
-        if (isRailReading(rawReading.value) || isRailReading(peakReading.value)) {
-            return res.status(422).json({
-                error: 'Invalid EMG packet',
-                details: 'ADC reading is saturated or floating. Check EMG sensor wiring, shared ground, and avoid GPIO34 floating input.'
-            });
-        }
-
         const meanRaw = optionalNumber(emg.mean ?? emg.average ?? emg.avg, rawReading.value);
         const signalSwing = optionalNumber(
             emg.peak_to_peak ?? emg.peakToPeak ?? emg.p2p,
             Math.abs(peakReading.value - rawReading.value)
         );
-
-        if (meanRaw < ADC_MIN_CONTACT_RAW || meanRaw > ADC_MAX_CONTACT_RAW) {
-            return res.status(422).json({
-                error: 'No valid EMG contact',
-                details: 'Average ADC level is too weak or too high. Check sensor power, output pin, and shared ESP32 GND.'
-            });
-        }
-
-        if (rmsReading.value < MIN_VALID_RMS || signalSwing < MIN_VALID_SIGNAL_SWING) {
-            return res.status(422).json({
-                error: 'No valid EMG activity',
-                details: 'Signal is too flat for a real muscle reading. Attach the electrodes and flex the muscle.'
-            });
-        }
+        const emgQuality = {
+            rail: isRailReading(rawReading.value) || isRailReading(peakReading.value),
+            weak_contact: meanRaw < ADC_MIN_CONTACT_RAW || meanRaw > ADC_MAX_CONTACT_RAW,
+            flat_signal: rmsReading.value < MIN_VALID_RMS || signalSwing < MIN_VALID_SIGNAL_SWING
+        };
 
         // 1. Adaptive Fatigue Detection
         const max_rms = await getCachedMaxRms(supabase, device_id);
@@ -150,6 +134,7 @@ const processAndStoreData = async (req, res) => {
         if (io) {
             io.emit('sensor_update', {
                 ...payloadToSave,
+                emgQuality,
                 source_timestamp: timestamp,
                 time: new Date().toLocaleTimeString([], { hour12: false, second: '2-digit', minute: '2-digit' })
             });
@@ -188,7 +173,8 @@ const processAndStoreData = async (req, res) => {
         res.status(200).json({
             status: 'processed',
             analysis: { fatigue, posture, risk },
-            risk
+            risk,
+            emgQuality
         });
     } catch (error) {
         console.error('Error processing sensor stream:', error);

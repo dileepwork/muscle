@@ -1,77 +1,64 @@
 import { NavLink } from 'react-router-dom';
-import {
-  History,
-  LayoutDashboard,
-  X,
-  Zap,
-} from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { History, LayoutDashboard, X, Zap } from 'lucide-react';
 
-function cn(...inputs) {
-  return twMerge(clsx(inputs));
-}
-
-const navItems = [
-  { name: 'Monitor', path: '/dashboard', icon: LayoutDashboard },
+const nav = [
+  { name: 'Monitor',     path: '/dashboard',   icon: LayoutDashboard },
   { name: 'Calibration', path: '/calibration', icon: Zap },
-  { name: 'History', path: '/history', icon: History },
+  { name: 'History',     path: '/history',     icon: History },
 ];
 
 export default function Sidebar({ open, setOpen }) {
   return (
     <aside
-      className={cn(
-        'fixed inset-y-0 left-0 z-30 flex w-72 transform flex-col border-r border-slate-200 bg-white transition-transform duration-200 ease-out lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
-        open ? 'translate-x-0' : '-translate-x-full'
-      )}
+      style={{ width: 220, borderRight: '1px solid #262626', background: '#0f0f0f' }}
+      className={[
+        'fixed inset-y-0 left-0 z-30 flex flex-col',
+        'transition-transform duration-200 ease-out',
+        'lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
+        open ? 'translate-x-0' : '-translate-x-full',
+      ].join(' ')}
     >
-      <div className="flex h-16 items-center justify-between border-b border-slate-100 px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
-            <Zap className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-lg font-bold tracking-tight text-slate-900">MyoSense</p>
-            <p className="text-xs font-medium text-slate-500">Simple EMG monitor</p>
-          </div>
+      {/* Logo */}
+      <div className="flex h-14 items-center gap-2.5 px-4" style={{ borderBottom: '1px solid #262626' }}>
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600">
+          <Zap className="h-4 w-4 text-white" />
         </div>
+        <span className="text-sm font-semibold text-white">MyoSense</span>
         <button
-          type="button"
-          aria-label="Close navigation"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 lg:hidden"
           onClick={() => setOpen(false)}
+          className="ml-auto rounded p-1 text-neutral-500 hover:text-neutral-300 lg:hidden"
         >
-          <X className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
-        {navItems.map((item) => (
+      {/* Nav */}
+      <nav className="flex-1 space-y-0.5 p-3">
+        {nav.map(({ name, path, icon: Icon }) => (
           <NavLink
-            key={item.name}
-            to={item.path}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors',
-                isActive
-                  ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-100'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
-              )
-            }
+            key={path}
+            to={path}
             onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-neutral-800 text-white'
+                  : 'text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200',
+              ].join(' ')
+            }
           >
-            <item.icon className="h-5 w-5 flex-shrink-0" />
-            <span className="truncate">{item.name}</span>
+            <Icon className="h-4 w-4 shrink-0" />
+            {name}
           </NavLink>
         ))}
       </nav>
 
-      <div className="border-t border-slate-100 p-4">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Active Device</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">ESP32_01</p>
-          <p className="text-xs text-slate-500">ESP32 EMG stream</p>
+      {/* Device badge */}
+      <div className="p-3" style={{ borderTop: '1px solid #262626' }}>
+        <div className="rounded-md bg-neutral-900 px-3 py-2.5">
+          <p className="text-xs text-neutral-500">Active device</p>
+          <p className="mt-0.5 text-sm font-medium text-neutral-200">ESP32_01</p>
         </div>
       </div>
     </aside>

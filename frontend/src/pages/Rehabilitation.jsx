@@ -119,7 +119,7 @@ export default function Rehabilitation() {
           <div className="card-header">
             <div>
               <h2 className="card-title">Daily Recovery Trend</h2>
-              <p className="mt-1 text-xs text-slate-500">Higher safe rate and stable RMS usually indicate better control.</p>
+              <p className="mt-1 text-xs text-neutral-500">Higher safe rate and stable RMS usually indicate better control.</p>
             </div>
           </div>
           <div className="card-body">
@@ -130,20 +130,20 @@ export default function Rehabilitation() {
             ) : (
               <div className="space-y-4">
                 {progress.map((day) => (
-                  <div key={day.day} className="rounded-lg border border-slate-200 p-4">
+                  <div key={day.day} className="rounded-lg border border-neutral-800 p-4">
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{day.day}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-semibold text-white">{day.day}</p>
+                        <p className="text-xs text-neutral-500">
                           {day.samples} samples · Avg RMS {formatNumber(day.avgRms)} uV
                         </p>
                       </div>
-                      <p className="text-sm font-semibold text-slate-700">{day.safeRate}% safe</p>
+                      <p className="text-sm font-semibold text-neutral-200">{day.safeRate}% safe</p>
                     </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-neutral-800">
                       <div
                         className={`h-full rounded-full ${
-                          day.safeRate >= 80 ? 'bg-emerald-500' : day.safeRate >= 60 ? 'bg-amber-500' : 'bg-red-500'
+                          day.safeRate >= 80 ? 'bg-emerald-500' : day.safeRate >= 60 ? 'bg-amber-500/100' : 'bg-red-500'
                         }`}
                         style={{ width: `${day.safeRate}%` }}
                       />
@@ -159,20 +159,20 @@ export default function Rehabilitation() {
           <div className="card-header">
             <div>
               <h2 className="card-title">Session Guidance</h2>
-              <p className="mt-1 text-xs text-slate-500">Based on the current history window.</p>
+              <p className="mt-1 text-xs text-neutral-500">Based on the current history window.</p>
             </div>
           </div>
-          <div className="card-body space-y-4 text-sm leading-6 text-slate-600">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="font-semibold text-slate-900">Recommended focus</p>
+          <div className="card-body space-y-4 text-sm leading-6 text-neutral-300">
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+              <p className="font-semibold text-white">Recommended focus</p>
               <p className="mt-1">
                 {riskEvents > 0
                   ? 'Reduce intensity and review posture before increasing load.'
                   : 'Maintain current intensity and continue stable repetitions.'}
               </p>
             </div>
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="font-semibold text-slate-900">Accuracy note</p>
+            <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-4">
+              <p className="font-semibold text-white">Accuracy note</p>
               <p className="mt-1">
                 Run calibration for each user before comparing RMS values across sessions.
               </p>

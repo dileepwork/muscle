@@ -11,10 +11,10 @@ function App() {
 
   return (
     <Router>
-      <div className="flex min-h-dvh bg-slate-50">
+      <div className="flex min-h-dvh">
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 z-20 bg-slate-950/40 lg:hidden"
+            className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
           ></div>
         )}
@@ -24,7 +24,7 @@ function App() {
         <div className="flex min-w-0 flex-1 flex-col">
           <Header onMenuClick={() => setSidebarOpen(true)} />
           
-          <main className="flex-1 bg-slate-50 px-4 py-5 sm:px-6 lg:px-8">
+          <main className="flex-1 px-4 py-5 sm:px-6 lg:px-8">
             <div className="mx-auto w-full max-w-7xl">
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

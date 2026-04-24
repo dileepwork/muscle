@@ -1,78 +1,88 @@
 @import "tailwindcss";
 
+/* ── Design tokens ───────────────────────────────────────────────── */
 @theme {
-  --color-background: #f8fafc;
-  --color-card: #ffffff;
-  --color-primary: #3b82f6;
-  --color-secondary: #64748b;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-background: #0f0f0f;
+  --color-surface:    #171717;
+  --color-border:     #262626;
+  --color-primary:    #3b82f6;
+  --color-success:    #22c55e;
+  --color-warning:    #f59e0b;
+  --color-danger:     #ef4444;
 }
 
+/* ── Base ────────────────────────────────────────────────────────── */
 @layer base {
-  html {
-    color-scheme: light;
-  }
+  html { color-scheme: dark; background-color: #0f0f0f; }
 
   body {
-    @apply bg-background text-slate-800 antialiased font-sans;
+    @apply bg-background text-neutral-200 antialiased;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
 
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-  }
+  button, input, select, textarea { font: inherit; }
 }
 
+/* ── Components ──────────────────────────────────────────────────── */
 @layer components {
+
+  /* Card */
   .card {
-    @apply overflow-hidden rounded-lg border border-slate-200 bg-card shadow-sm;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
   }
   .card-header {
-    @apply flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5;
+    @apply flex flex-col gap-3 border-b px-5 py-4
+           sm:flex-row sm:items-center sm:justify-between;
+    border-color: var(--color-border);
   }
-  .card-title {
-    @apply text-base font-semibold text-slate-900;
-  }
-  .card-body {
-    @apply p-4 sm:p-5;
-  }
-  
+  .card-title  { @apply text-sm font-semibold text-neutral-100; }
+  .card-body   { @apply p-5; }
+
+  /* Buttons */
   .btn-primary {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300;
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg
+           bg-blue-600 px-4 text-sm font-medium text-white
+           transition-colors hover:bg-blue-500
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+           focus:ring-offset-background
+           disabled:cursor-not-allowed disabled:opacity-50;
   }
-  
   .btn-outline {
-    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:text-slate-400;
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg
+           border px-4 text-sm font-medium text-neutral-300
+           transition-colors hover:bg-neutral-800 hover:text-neutral-100
+           focus:outline-none focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2
+           focus:ring-offset-background
+           disabled:cursor-not-allowed disabled:opacity-50;
+    border-color: var(--color-border);
   }
 
+  /* Input */
   .input {
-    @apply min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100;
+    @apply h-9 rounded-lg border bg-neutral-900 px-3 text-sm
+           text-neutral-200 placeholder:text-neutral-500
+           outline-none transition
+           focus:border-blue-500 focus:ring-1 focus:ring-blue-500;
+    border-color: var(--color-border);
   }
 
+  /* Badge */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 rounded-md border
+           px-2.5 py-1 text-xs font-medium;
+  }
+
+  /* Status dot */
+  .status-dot {
+    @apply h-2 w-2 rounded-full;
   }
 }
 
-/* Custom Scrollbar for better look */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9; 
-}
- 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1; 
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8; 
-}
+/* ── Scrollbar ───────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f0f0f; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }

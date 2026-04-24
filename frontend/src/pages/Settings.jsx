@@ -106,7 +106,7 @@ export default function Settings() {
           <div className="card-header">
             <div>
               <h2 className="card-title">Risk Engine Rules</h2>
-              <p className="mt-1 text-xs text-slate-500">Current backend logic used for live classification.</p>
+              <p className="mt-1 text-xs text-neutral-500">Current backend logic used for live classification.</p>
             </div>
           </div>
           <div className="card-body">
@@ -114,21 +114,21 @@ export default function Settings() {
               <StatePanel type="loading" title="Loading settings" message="Checking backend and device calibration." />
             ) : (
               <div className="space-y-3 text-sm">
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="font-semibold text-slate-900">Fatigue</p>
-                  <p className="mt-1 text-slate-600">
+                <div className="rounded-lg border border-neutral-800 p-4">
+                  <p className="font-semibold text-white">Fatigue</p>
+                  <p className="mt-1 text-neutral-300">
                     Low below 30% of calibrated max RMS, moderate above 30%, high above 60%.
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="font-semibold text-slate-900">Posture</p>
-                  <p className="mt-1 text-slate-600">
+                <div className="rounded-lg border border-neutral-800 p-4">
+                  <p className="font-semibold text-white">Posture</p>
+                  <p className="mt-1 text-neutral-300">
                     Bad posture when pitch is above 30 deg or roll is above 20 deg.
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-200 p-4">
-                  <p className="font-semibold text-slate-900">Risk</p>
-                  <p className="mt-1 text-slate-600">
+                <div className="rounded-lg border border-neutral-800 p-4">
+                  <p className="font-semibold text-white">Risk</p>
+                  <p className="mt-1 text-neutral-300">
                     Critical when high fatigue and bad posture happen together. Warning when either one is unsafe.
                   </p>
                 </div>
@@ -141,25 +141,25 @@ export default function Settings() {
           <div className="card-header">
             <div>
               <h2 className="card-title">Integration Values</h2>
-              <p className="mt-1 text-xs text-slate-500">Use these values when testing frontend, backend, and ESP32 together.</p>
+              <p className="mt-1 text-xs text-neutral-500">Use these values when testing frontend, backend, and ESP32 together.</p>
             </div>
           </div>
           <div className="card-body space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Backend API</p>
-              <code className="mt-2 block overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Backend API</p>
+              <code className="mt-2 block overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-200">
                 {API_URL}
               </code>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">ESP32 Stream Endpoint</p>
-              <code className="mt-2 block overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">ESP32 Stream Endpoint</p>
+              <code className="mt-2 block overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-sm text-neutral-200">
                 {API_URL}/api/sensor-data/stream
               </code>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Firmware</p>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Firmware</p>
+              <p className="mt-2 text-sm text-neutral-300">
                 {deviceStatus?.firmwareVersion || 'No firmware status loaded'}
               </p>
             </div>

@@ -8,9 +8,9 @@ import { formatDateTime, titleCase } from '../lib/format';
 
 const severityClass = (severity) => {
   const value = String(severity || '').toLowerCase();
-  if (value === 'critical') return 'border-red-200 bg-red-50 text-red-700';
-  if (value === 'warning') return 'border-amber-200 bg-amber-50 text-amber-700';
-  return 'border-slate-200 bg-slate-50 text-slate-700';
+  if (value === 'critical') return 'border-red-900 bg-red-950 text-red-400';
+  if (value === 'warning') return 'border-yellow-900 bg-yellow-950/500/10 text-amber-400';
+  return 'border-neutral-800 bg-neutral-900 text-neutral-200';
 };
 
 export default function Alerts() {
@@ -85,7 +85,7 @@ export default function Alerts() {
       >
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
             <input
               value={deviceId}
               onChange={(event) => setDeviceId(event.target.value)}
@@ -93,12 +93,12 @@ export default function Alerts() {
               placeholder="Device ID"
             />
           </div>
-          <label className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
+          <label className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-neutral-800 bg-neutral-900  px-3 text-sm font-semibold text-neutral-200">
             <input
               type="checkbox"
               checked={showResolved}
               onChange={(event) => setShowResolved(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-neutral-700 text-blue-400 focus:ring-blue-500"
             />
             Include resolved
           </label>
@@ -126,7 +126,7 @@ export default function Alerts() {
         <div className="card-header">
           <div>
             <h2 className="card-title">Alert Queue</h2>
-            <p className="mt-1 text-xs text-slate-500">Resolve alerts after checking the patient/device condition.</p>
+            <p className="mt-1 text-xs text-neutral-500">Resolve alerts after checking the patient/device condition.</p>
           </div>
         </div>
         <div className="card-body">
@@ -137,18 +137,18 @@ export default function Alerts() {
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {alerts.map((alert) => (
-                <div key={alert.id} className="rounded-lg border border-slate-200 bg-white p-4">
+                <div key={alert.id} className="rounded-lg border border-neutral-800 bg-neutral-900  p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`badge ${severityClass(alert.severity)}`}>{titleCase(alert.severity)}</span>
                         {alert.resolved && (
-                          <span className="badge border-emerald-200 bg-emerald-50 text-emerald-700">Resolved</span>
+                          <span className="badge border-green-900 bg-green-950 text-green-400">Resolved</span>
                         )}
                       </div>
-                      <h3 className="mt-3 text-base font-semibold text-slate-900">{alert.type}</h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{alert.message}</p>
-                      <p className="mt-2 text-xs text-slate-500">
+                      <h3 className="mt-3 text-base font-semibold text-white">{alert.type}</h3>
+                      <p className="mt-1 text-sm leading-6 text-neutral-300">{alert.message}</p>
+                      <p className="mt-2 text-xs text-neutral-500">
                         {alert.device_id} · {formatDateTime(alert.created_at)}
                       </p>
                     </div>

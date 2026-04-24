@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1250" viewBox="0 0 1900 1250">
+  <defs>
+    <style>
+      .title { font: 700 40px Arial, sans-serif; fill: #0f172a; letter-spacing: 1px; }
+      .section { font: 700 25px Arial, sans-serif; fill: #0f172a; }
+      .label { font: 600 20px Arial, sans-serif; fill: #0f172a; }
+      .small { font: 16px Arial, sans-serif; fill: #334155; }
+      .pin { font: 700 18px Arial, sans-serif; fill: #0f172a; }
+      .noteTitle { font: 700 18px Arial, sans-serif; fill: #991b1b; }
+      .box { fill: #f8fafc; stroke: #334155; stroke-width: 3; rx: 16; }
+      .module { fill: #e2e8f0; stroke: #0f172a; stroke-width: 3; rx: 12; }
+      .pinbox { fill: #ffffff; stroke: #64748b; stroke-width: 2; rx: 7; }
+      .supply { fill: #fff7ed; stroke: #fb923c; stroke-width: 3; rx: 12; }
+      .power { stroke: #dc2626; stroke-width: 6; fill: none; }
+      .ground { stroke: #111827; stroke-width: 6; fill: none; }
+      .signal { stroke: #16a34a; stroke-width: 6; fill: none; }
+      .i2c-sda { stroke: #2563eb; stroke-width: 6; fill: none; }
+      .i2c-scl { stroke: #7c3aed; stroke-width: 6; fill: none; }
+      .buzzer { stroke: #ea580c; stroke-width: 6; fill: none; }
+      .motor { stroke: #db2777; stroke-width: 6; fill: none; }
+      .motorpower { stroke: #92400e; stroke-width: 6; fill: none; }
+      .dot-red { fill: #dc2626; }
+      .dot-black { fill: #111827; }
+      .dot-green { fill: #16a34a; }
+      .dot-blue { fill: #2563eb; }
+      .dot-purple { fill: #7c3aed; }
+      .dot-orange { fill: #ea580c; }
+      .dot-pink { fill: #db2777; }
+      .dot-brown { fill: #92400e; }
+    </style>
+  </defs>
+
+  <rect width="1900" height="1250" fill="#ffffff"/>
+  <text x="950" y="60" text-anchor="middle" class="title">ESP32 + EMG + MPU6050 + BUZZER + VIBRATION MOTOR WIRING</text>
+  <text x="950" y="95" text-anchor="middle" class="small">Project-confirmed pins are kept for EMG and MPU6050. Buzzer and motor pins are recommended additions.</text>
+
+  <!-- ESP32 -->
+  <rect x="70" y="120" width="430" height="960" class="box"/>
+  <text x="285" y="165" text-anchor="middle" class="section">ESP32 DEV MODULE</text>
+  <rect x="165" y="240" width="190" height="280" class="module"/>
+  <text x="260" y="370" text-anchor="middle" class="label">ESP32</text>
+  <text x="260" y="400" text-anchor="middle" class="small">Dev Module</text>
+
+  <rect x="350" y="200" width="150" height="38" class="pinbox"/>
+  <text x="425" y="225" text-anchor="middle" class="pin">3V3</text>
+  <rect x="350" y="255" width="150" height="38" class="pinbox"/>
+  <text x="425" y="280" text-anchor="middle" class="pin">GND</text>
+  <rect x="350" y="320" width="150" height="38" class="pinbox"/>
+  <text x="425" y="345" text-anchor="middle" class="pin">GPIO34</text>
+  <rect x="350" y="385" width="150" height="38" class="pinbox"/>
+  <text x="425" y="410" text-anchor="middle" class="pin">GPIO21</text>
+  <rect x="350" y="450" width="150" height="38" class="pinbox"/>
+  <text x="425" y="475" text-anchor="middle" class="pin">GPIO22</text>
+  <rect x="350" y="515" width="150" height="38" class="pinbox"/>
+  <text x="425" y="540" text-anchor="middle" class="pin">GPIO25</text>
+  <rect x="350" y="580" width="150" height="38" class="pinbox"/>
+  <text x="425" y="605" text-anchor="middle" class="pin">GPIO27</text>
+
+  <text x="120" y="750" class="small">GPIO34 is analog input only and has no internal pull-down.</text>
+  <text x="120" y="780" class="small">Add an external 100k resistor from GPIO34 to GND.</text>
+  <text x="120" y="810" class="small">Recommended additions:</text>
+  <text x="145" y="838" class="small">GPIO25 for active buzzer module IN</text>
+  <text x="145" y="866" class="small">GPIO27 for vibration motor driver IN</text>
+  <text x="120" y="910" class="small">Common ground is required across all modules.</text>
+
+  <!-- EMG -->
+  <rect x="1380" y="130" width="420" height="250" class="box"/>
+  <text x="1590" y="175" text-anchor="middle" class="section">EMG SENSOR</text>
+  <rect x="1440" y="225" width="280" height="110" class="module"/>
+  <text x="1580" y="286" text-anchor="middle" class="label">EMG MODULE</text>
+  <rect x="1270" y="205" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="229" text-anchor="middle" class="pin">VCC</text>
+  <rect x="1270" y="270" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="294" text-anchor="middle" class="pin">GND</text>
+  <rect x="1270" y="335" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="359" text-anchor="middle" class="pin">OUT</text>
+
+  <!-- MPU6050 -->
+  <rect x="1380" y="430" width="420" height="320" class="box"/>
+  <text x="1590" y="475" text-anchor="middle" class="section">MPU6050 / GY-521</text>
+  <rect x="1440" y="545" width="280" height="130" class="module"/>
+  <text x="1580" y="612" text-anchor="middle" class="label">MPU6050</text>
+  <text x="1580" y="640" text-anchor="middle" class="small">I2C IMU</text>
+  <rect x="1270" y="505" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="529" text-anchor="middle" class="pin">VCC</text>
+  <rect x="1270" y="560" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="584" text-anchor="middle" class="pin">GND</text>
+  <rect x="1270" y="615" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="639" text-anchor="middle" class="pin">SDA</text>
+  <rect x="1270" y="670" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="694" text-anchor="middle" class="pin">SCL</text>
+
+  <!-- Buzzer -->
+  <rect x="1380" y="800" width="420" height="210" class="box"/>
+  <text x="1590" y="845" text-anchor="middle" class="section">ACTIVE BUZZER MODULE</text>
+  <rect x="1440" y="890" width="280" height="75" class="module"/>
+  <text x="1580" y="936" text-anchor="middle" class="label">BUZZER</text>
+  <rect x="1270" y="855" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="879" text-anchor="middle" class="pin">VCC</text>
+  <rect x="1270" y="910" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="934" text-anchor="middle" class="pin">GND</text>
+  <rect x="1270" y="965" width="110" height="36" class="pinbox"/>
+  <text x="1325" y="989" text-anchor="middle" class="pin">IN</text>
+
+  <!-- Motor driver -->
+  <rect x="760" y="820" width="480" height="290" class="box"/>
+  <text x="1000" y="865" text-anchor="middle" class="section">VIBRATION MOTOR DRIVER</text>
+  <rect x="830" y="920" width="180" height="100" class="module"/>
+  <text x="920" y="976" text-anchor="middle" class="label">N-MOSFET</text>
+  <text x="920" y="1002" text-anchor="middle" class="small">or NPN driver</text>
+
+  <rect x="690" y="900" width="90" height="34" class="pinbox"/>
+  <text x="735" y="923" text-anchor="middle" class="pin">IN</text>
+  <rect x="690" y="955" width="90" height="34" class="pinbox"/>
+  <text x="735" y="978" text-anchor="middle" class="pin">GND</text>
+  <rect x="1125" y="900" width="90" height="34" class="pinbox"/>
+  <text x="1170" y="923" text-anchor="middle" class="pin">V+</text>
+  <rect x="1125" y="955" width="90" height="34" class="pinbox"/>
+  <text x="1170" y="978" text-anchor="middle" class="pin">M-</text>
+
+  <rect x="1015" y="915" width="145" height="95" class="module"/>
+  <text x="1088" y="970" text-anchor="middle" class="label">MOTOR</text>
+
+  <rect x="1000" y="1035" width="190" height="55" class="supply"/>
+  <text x="1095" y="1069" text-anchor="middle" class="small">External 3.3V / 5V motor supply</text>
+
+  <!-- Power wires -->
+  <path d="M500 219 H880 V223 H1270" class="power"/>
+  <circle cx="500" cy="219" r="9" class="dot-red"/>
+  <circle cx="1270" cy="223" r="9" class="dot-red"/>
+
+  <path d="M880 219 V523 H1270" class="power"/>
+  <circle cx="1270" cy="523" r="9" class="dot-red"/>
+
+  <path d="M880 219 V873 H1270" class="power"/>
+  <circle cx="1270" cy="873" r="9" class="dot-red"/>
+
+  <!-- Ground wires -->
+  <path d="M500 274 H860 V288 H1270" class="ground"/>
+  <circle cx="500" cy="274" r="9" class="dot-black"/>
+  <circle cx="1270" cy="288" r="9" class="dot-black"/>
+
+  <path d="M860 274 V578 H1270" class="ground"/>
+  <circle cx="1270" cy="578" r="9" class="dot-black"/>
+
+  <path d="M860 274 V928 H1270" class="ground"/>
+  <circle cx="1270" cy="928" r="9" class="dot-black"/>
+
+  <path d="M860 274 V972 H690" class="ground"/>
+  <circle cx="690" cy="972" r="9" class="dot-black"/>
+
+  <!-- EMG analog -->
+  <path d="M500 339 H760 V353 H1270" class="signal"/>
+  <circle cx="500" cy="339" r="9" class="dot-green"/>
+  <circle cx="1270" cy="353" r="9" class="dot-green"/>
+
+  <!-- Pull-down resistor -->
+  <path d="M760 339 V515" class="signal"/>
+  <rect x="738" y="425" width="44" height="90" fill="#fef3c7" stroke="#92400e" stroke-width="3" rx="8"/>
+  <path d="M760 515 V590 H860" class="ground"/>
+  <text x="798" y="460" class="label">100k</text>
+  <text x="798" y="488" class="small">pull-down</text>
+  <text x="798" y="516" class="small">GPIO34 to GND</text>
+
+  <!-- I2C -->
+  <path d="M500 404 H930 V633 H1270" class="i2c-sda"/>
+  <circle cx="500" cy="404" r="9" class="dot-blue"/>
+  <circle cx="1270" cy="633" r="9" class="dot-blue"/>
+
+  <path d="M500 469 H970 V688 H1270" class="i2c-scl"/>
+  <circle cx="500" cy="469" r="9" class="dot-purple"/>
+  <circle cx="1270" cy="688" r="9" class="dot-purple"/>
+
+  <!-- Buzzer signal -->
+  <path d="M500 534 H980 V983 H1270" class="buzzer"/>
+  <circle cx="500" cy="534" r="9" class="dot-orange"/>
+  <circle cx="1270" cy="983" r="9" class="dot-orange"/>
+
+  <!-- Motor control -->
+  <path d="M500 599 H620 V917 H690" class="motor"/>
+  <circle cx="500" cy="599" r="9" class="dot-pink"/>
+  <circle cx="690" cy="917" r="9" class="dot-pink"/>
+
+  <!-- Motor power -->
+  <path d="M1190 1062 H1215 V917 H1125" class="motorpower"/>
+  <circle cx="1125" cy="917" r="9" class="dot-brown"/>
+  <circle cx="1190" cy="1062" r="9" class="dot-brown"/>
+  <path d="M1215 1062 H1160 V962 H1125" class="motorpower"/>
+  <circle cx="1125" cy="972" r="9" class="dot-brown"/>
+
+  <!-- Driver to motor -->
+  <path d="M1215 972 H1275 V942 H1160" class="motorpower"/>
+  <circle cx="1160" cy="942" r="9" class="dot-brown"/>
+  <path d="M1215 917 H1275 V912 H1015" class="motorpower"/>
+  <circle cx="1015" cy="912" r="9" class="dot-brown"/>
+
+  <!-- Legend -->
+  <rect x="70" y="1120" width="760" height="95" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2" rx="12"/>
+  <line x1="110" y1="1150" x2="175" y2="1150" class="power"/>
+  <text x="190" y="1157" class="small">3V3 power</text>
+  <line x1="315" y1="1150" x2="380" y2="1150" class="ground"/>
+  <text x="395" y="1157" class="small">GND</text>
+  <line x1="500" y1="1150" x2="565" y2="1150" class="signal"/>
+  <text x="580" y="1157" class="small">EMG analog OUT</text>
+  <line x1="110" y1="1185" x2="175" y2="1185" class="i2c-sda"/>
+  <text x="190" y="1192" class="small">MPU6050 SDA</text>
+  <line x1="315" y1="1185" x2="380" y2="1185" class="i2c-scl"/>
+  <text x="395" y="1192" class="small">MPU6050 SCL</text>
+  <line x1="500" y1="1185" x2="565" y2="1185" class="buzzer"/>
+  <text x="580" y="1192" class="small">Buzzer IN</text>
+  <line x1="665" y1="1185" x2="730" y2="1185" class="motor"/>
+  <text x="745" y="1192" class="small">Motor driver IN</text>
+
+  <!-- Notes -->
+  <rect x="865" y="1120" width="965" height="95" fill="#fff7ed" stroke="#f97316" stroke-width="3" rx="16"/>
+  <text x="895" y="1150" class="noteTitle">Important notes</text>
+  <text x="895" y="1178" class="small">1. EMG and MPU6050 pins are based on the current project wiring assets and committed firmware.</text>
+  <text x="895" y="1202" class="small">2. Buzzer on GPIO25 and motor driver on GPIO27 are recommended additions. Update firmware before using them.</text>
+  <text x="895" y="1226" class="small">3. Do not drive the vibration motor directly from the ESP32 pin. Use a driver transistor or MOSFET and share ground.</text>
+</svg>
