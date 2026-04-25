@@ -30,7 +30,7 @@ The backend serves as the bridge between the hardware devices and the frontend d
 3. Check `.env` variables (A sample `.env` is already created):
    ```env
    PORT=5000
-   FRONTEND_URL=http://localhost:5173
+   FRONTEND_URL=https://muscle-h118.vercel.app,http://localhost:5173
    SUPABASE_URL=https://your-project-id.supabase.co
    SUPABASE_ANON_KEY=your-supabase-anon-key
    ```
@@ -59,9 +59,9 @@ The frontend provides a modern, responsive dashboard to monitor the sensor data.
    ```bash
    npm install
    ```
-3. Optional: create `frontend/.env` if the backend is not on `http://localhost:5000`:
+3. Optional: create `frontend/.env` if the backend is not on `http://localhost:5000` or the deployed backend:
    ```env
-   VITE_API_URL=http://localhost:5000
+   VITE_API_URL=https://muscle-gilt.vercel.app
    ```
 4. Run the development server:
    ```bash
@@ -81,12 +81,12 @@ In your ESP32 / Arduino firmware code, you must specify the backend URL where th
 If running locally on the same Wi-Fi network, replace `YOUR_PC_IP_ADDRESS` with your actual IPv4 address (e.g., `192.168.1.100`).
 
 ```cpp
-// Example C++ / ESP32 Configuration
-const char* BACKEND_URL = "http://YOUR_PC_IP_ADDRESS:5000"; 
-// Example: "http://192.168.1.100:5000"
+// Deployed Vercel API Configuration
+const char* BACKEND_URL = "https://muscle-gilt.vercel.app"; 
 
-// If deployed online, use the public domain:
-// const char* BACKEND_URL = "https://your-deployed-backend.com";
+// If running locally on the same Wi-Fi network, use:
+// const char* BACKEND_URL = "http://YOUR_PC_IP_ADDRESS:5000"; 
+// Example: "http://192.168.1.100:5000"
 ```
 
 ### Main API Endpoints

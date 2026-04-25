@@ -10,7 +10,7 @@ const deviceRoutes = require('./routes/deviceRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://muscle-h118.vercel.app,http://localhost:5173';
 const allowedOrigins = FRONTEND_URL.split(',').map((origin) => origin.trim()).filter(Boolean);
 const localDevOriginPattern = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
 const allowLocalDevOrigins = process.env.ALLOW_LOCAL_DEV_ORIGINS !== 'false';
